@@ -80,4 +80,5 @@ hs_err_pid*
 
 ### Project
 bin/
+doc/
 !lib/*.jar
