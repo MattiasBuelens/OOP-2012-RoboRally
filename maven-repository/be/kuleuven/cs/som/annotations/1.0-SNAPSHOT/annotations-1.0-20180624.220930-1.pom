@@ -5,5 +5,4 @@
   <groupId>be.kuleuven.cs.som</groupId>
   <artifactId>annotations</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <description>POM was created from install:install-file</description>
 </project>

@@ -16,9 +16,9 @@
 
     <repositories>
         <repository>
-            <id>project-repo</id>
-            <name>Project Repo</name>
-            <url>file://${project.basedir}/libs</url>
+            <id>maven-repository</id>
+            <name>Local Maven Repository</name>
+            <url>file:///${project.basedir}/maven-repository</url>
         </repository>
     </repositories>
 
