@@ -1,4 +1,4 @@
-package roborally;
+package roborally.view;
 
 import java.awt.Color;
 import java.awt.Graphics;
@@ -12,6 +12,8 @@ import java.net.URL;
 import java.util.Map.Entry;
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
+
+import roborally.IRobot;
 
 public class RoboRallyView extends JPanel {
 	

@@ -1,4 +1,4 @@
-package roborally;
+package roborally.view;
 
 import static java.lang.System.out;
 
@@ -20,13 +20,15 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
 
+import roborally.IRobot;
+
 public class RoboRally extends JFrame {
 	
 	private static final long serialVersionUID = -3473726733665371064L;
 	// replace new roboraly.model.Facade() with new yourpackage.Facade()
 	// <begin>
-	private IFacade facade = new roborally.model.Facade();
-	//<end> 
+	private IFacade facade = new roborally.view.Facade();
+	// <end> 
 	private Map<String, IRobot> robots = new HashMap<String, IRobot>();
 	private JLabel statusBar;
 	private RoboRallyView view;
@@ -177,6 +179,9 @@ public class RoboRally extends JFrame {
 			} else {
 				out.println("no");
 			}
+		}else if(words[0].equals("clear")) {
+			robots.clear();
+			out.println("board cleared");
 		}else if(words[0].equals("help")) {
 			out.println("commands:");
 			out.println("\taddrobot <name> <long> <long> [<double>]");

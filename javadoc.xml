@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="javadoc">
+    <target name="javadoc">
+        <javadoc access="public" additionalparam=" -taglet be.kuleuven.cs.som.taglet.InvarTaglet&#13;&#10;-taglet be.kuleuven.cs.som.taglet.PreTaglet&#13;&#10;-taglet be.kuleuven.cs.som.taglet.PostTaglet&#13;&#10;-taglet be.kuleuven.cs.som.taglet.EffectTaglet&#13;&#10;-taglet be.kuleuven.cs.som.taglet.ReturnTaglet&#13;&#10;-taglet be.kuleuven.cs.som.taglet.ThrowsTaglet&#13;&#10;-taglet be.kuleuven.cs.som.taglet.NoteTaglet&#13;&#10;-tagletpath &quot;C:\Users\Mattias\Documents\KU Leuven\Bach2\Semester 2\OOP\Workspace\RoboRally\AnnotationsDoclets.jar&quot;" author="true" classpath="C:\Program Files (x86)\Eclipse\plugins\org.hamcrest.core_1.1.0.v20090501071000.jar;C:\Program Files (x86)\Eclipse\plugins\org.junit_4.8.2.v4_8_2_v20110321-1705\junit.jar;AnnotationsDoclets.jar" destdir="doc" nodeprecated="false" nodeprecatedlist="false" noindex="false" nonavbar="false" notree="false" packagenames="roborally.test,roborally" source="1.6" sourcepath="src" splitindex="true" use="true" version="true">
+            <link href="http://download.oracle.com/javase/6/docs/api/"/>
+            <link href="http://www.junit.org/junit/javadoc/4.5"/>
+        </javadoc>
+    </target>
+</project>

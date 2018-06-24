@@ -1,4 +1,6 @@
-package roborally;
+package roborally.view;
+
+import roborally.IRobot;
 
 /**
  * Implement this interface to connect your code to the user interface.
@@ -74,7 +76,7 @@ public interface IFacade {
 	 * Add <code>energyAmount</code> (expressed in watt-second) to <code>robot</code>. If <code>energyAmount</code> is negative or if
 	 * adding <code>energyAmount</code> would cause the robot to exceed its maximum energy level, do not modify the state of the robot.
 	 */
-	public void recharge(IRobot rogot, double energyAmount);
+	public void recharge(IRobot robot, double energyAmount);
 
 	/**
 	 * Return whether your implementations of <code>getEnergyRequiredToReach</code> and <code>moveNextTo</code> take into account the fact that

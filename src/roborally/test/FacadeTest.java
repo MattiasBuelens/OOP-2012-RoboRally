@@ -1,14 +1,14 @@
 package roborally.test;
 
+import org.junit.Test;
 import static org.junit.Assert.*;
 
-import org.junit.Test;
-
-import roborally.IFacade;
 import roborally.IRobot;
-import roborally.model.Facade;
+//import roborally.model.Facade;
+import roborally.view.Facade;
+import roborally.view.IFacade;
 
-public class IncompleteFacadeTest {
+public class FacadeTest {
 
 	private IFacade facade;
 	
@@ -18,7 +18,7 @@ public class IncompleteFacadeTest {
 	}
 	
 	@Test
-	public void testCreateRobot() {
+	public void createRobot_NormalCase() {
 		IRobot robot = facade.createRobot(5, 7, 0, 5000);
 		assertNotNull(robot);
 		assertEquals(5, facade.getX(robot));
@@ -28,7 +28,7 @@ public class IncompleteFacadeTest {
 	}
 	
 	@Test
-	public void testMove() {
+	public void move_NormalCase() {
 		IRobot robot = facade.createRobot(5, 7, 1, 5000);
 		facade.move(robot);
 		assertEquals(6, facade.getX(robot));
@@ -38,7 +38,7 @@ public class IncompleteFacadeTest {
 	}
 	
 	@Test
-	public void testMoveInsufficientEnergy() {
+	public void move_InsufficientEnergy() {
 		IRobot robot = facade.createRobot(0, 0, 1, 250);
 		facade.move(robot);
 		assertEquals(0, facade.getX(robot));
