@@ -4,13 +4,8 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 
-import roborally.InvalidPositionException;
-import roborally.InvalidSizeException;
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Board;
-import roborally.Vector;
-import roborally.Wall;
+import roborally.*;
+import roborally.EnergyAmount.Unit;
 
 public class RobotMoveNextToTest {
 
@@ -35,9 +30,9 @@ public class RobotMoveNextToTest {
 		robot.moveNextTo(otherRobot);
 
 		assertEquals(new Vector(1, 1), robot.getPosition());
-		assertEquals(400, robot.getEnergy(), 0.1);
+		assertEquals(400, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 		assertEquals(new Vector(0, 0), otherRobot.getPosition());
-		assertEquals(400, otherRobot.getEnergy(), 0.1);
+		assertEquals(400, otherRobot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
@@ -51,10 +46,10 @@ public class RobotMoveNextToTest {
 		robot.moveNextTo(otherRobot);
 		// Robot remain stationary
 		assertEquals(new Vector(0, 0), robot.getPosition());
-		assertEquals(9999, robot.getEnergy(), 0.1);
+		assertEquals(9999, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 		// Other robot moves to the left
 		assertEquals(new Vector(1, 0), otherRobot.getPosition());
-		assertEquals(0, otherRobot.getEnergy(), 0.1);
+		assertEquals(0, otherRobot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
@@ -212,9 +207,6 @@ public class RobotMoveNextToTest {
 		assertEquals(new Vector(4, 0), robot2.getPosition());
 
 		assertFalse(robot1.canReach(new Vector(3, 0)));
-
-		// @formatter:on
-
 	}
 
 	@Test(expected = IllegalStateException.class)

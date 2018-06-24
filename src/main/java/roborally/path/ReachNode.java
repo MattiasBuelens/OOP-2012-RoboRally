@@ -1,15 +1,13 @@
 package roborally.path;
 
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Vector;
+import roborally.*;
 
 /**
  * A robot node in a reachable nodes finding algorithm.
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
 public class ReachNode extends RobotNode {
 
@@ -45,11 +43,11 @@ public class ReachNode extends RobotNode {
 
 	/**
 	 * @effect	The estimated remaining cost is set to zero.
-	 * 			| setH(0)
+	 * 			| setH(EnergyAmount.ZERO)
 	 */
 	@Override
-	public void calculateH(Node destination) {
-		setH(0);
+	public void calculateH(Node<EnergyAmount> destination) {
+		setH(EnergyAmount.ZERO);
 	}
 
 	/**

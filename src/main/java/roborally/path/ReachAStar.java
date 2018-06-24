@@ -11,7 +11,7 @@ import roborally.Vector;
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
 public class ReachAStar extends RobotAStar<ReachNode> {
 
@@ -52,6 +52,7 @@ public class ReachAStar extends RobotAStar<ReachNode> {
 	 * 			is not effective.
 	 * 			| result == (target == null)
 	 */
+	@Override
 	protected boolean canHaveAsTarget(ReachNode target) {
 		return (target == null);
 	}

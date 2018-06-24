@@ -9,15 +9,20 @@ import be.kuleuven.cs.som.annotate.Immutable;
 import be.kuleuven.cs.som.annotate.Value;
 
 /**
- * Represents a vector in a two axis coordinate system.
+ * A vector in a two axis coordinate system.
  * 
  * @note	This class uses a two axis coordinate system:
  * 			<dl><dt>X-axis</dt><dd>Horizontal axis, positive values at the right.</dd>
  * 			<dt>Y-axis</dt><dd>Vertical axis, positive values downward.</dd></dl>
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 @Value
 public class Vector {
@@ -27,6 +32,21 @@ public class Vector {
 	 */
 	public static final Vector ZERO = new Vector(0, 0);
 
+	/**
+	 * Create a new vector with the given X- and Y-coordinates.
+	 * 
+	 * @param x
+	 * 			The X-coordinate for the new vector.
+	 * @param y
+	 * 			The Y-cooridnate for the new vector.
+	 * 
+	 * @post	The X-coordinate of the new vector is set
+	 * 			to the given X-coordinate.
+	 * 			| new.getX() == x
+	 * @post	The Y-coordinate of the new vector is set
+	 * 			to the given Y-coordinate.
+	 * 			| new.getY() == y
+	 */
 	public Vector(long x, long y) {
 		this.x = x;
 		this.y = y;
@@ -41,6 +61,9 @@ public class Vector {
 		return x;
 	}
 
+	/**
+	 * Variable registering the X-coordinate of this vector.
+	 */
 	private final long x;
 
 	/**
@@ -52,6 +75,9 @@ public class Vector {
 		return y;
 	}
 
+	/**
+	 * Variable registering the Y-coordinate of this vector.
+	 */
 	private final long y;
 
 	/**
@@ -233,12 +259,12 @@ public class Vector {
 	 * 			|   this.manhattanDistance(neighbour) == distance
 	 * 
 	 * @throws	IllegalArgumentException
-	 * 			If the given distance is strictly negative.
+	 * 			If the given distance is negative.
 	 * 			| distance < 0
 	 */
 	public Set<Vector> getNeighbours(long distance) throws IllegalArgumentException {
 		if (distance < 0)
-			throw new IllegalArgumentException("Distance to neighbour must be positive");
+			throw new IllegalArgumentException("Distance to neighbour must be non-negative");
 		if (distance == 0)
 			return Collections.singleton(this);
 
@@ -265,6 +291,9 @@ public class Vector {
 	 * @return	True if the given object reference equals this object reference.
 	 * 			| if (this == obj)
 	 * 			|   result == true
+	 * @return	False if the given object is not effective.
+	 * 			| else if (obj == null)
+	 * 			|   result == false
 	 * @return	False if the given object is not a vector.
 	 * 			| else if (getClass() != obj.getClass())
 	 * 			|   result == false
@@ -278,6 +307,8 @@ public class Vector {
 	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
+		if (obj == null)
+			return false;
 		if (getClass() != obj.getClass())
 			return false;
 		Vector other = (Vector) obj;

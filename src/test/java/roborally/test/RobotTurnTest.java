@@ -4,10 +4,8 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 
-import roborally.Board;
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Vector;
+import roborally.*;
+import roborally.EnergyAmount.Unit;
 
 public class RobotTurnTest {
 
@@ -27,22 +25,22 @@ public class RobotTurnTest {
 	public void turnClockwise_NormalCase() {
 		robotEnergy500.turnClockwise();
 		assertEquals(Orientation.DOWN, robotEnergy500.getOrientation());
-		assertEquals(400, robotEnergy500.getEnergy(), 0.1);
+		assertEquals(400, robotEnergy500.getEnergyAmount(Unit.WATTSECOND), 0.1);
 
 		robotEnergy500.turnClockwise();
 		assertEquals(Orientation.LEFT, robotEnergy500.getOrientation());
-		assertEquals(300, robotEnergy500.getEnergy(), 0.1);
+		assertEquals(300, robotEnergy500.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
 	public void turnCounterClockwise_NormalCase() {
 		robotEnergy500.turnCounterClockwise();
 		assertEquals(Orientation.UP, robotEnergy500.getOrientation());
-		assertEquals(400, robotEnergy500.getEnergy(), 0.1);
+		assertEquals(400, robotEnergy500.getEnergyAmount(Unit.WATTSECOND), 0.1);
 
 		robotEnergy500.turnCounterClockwise();
 		assertEquals(Orientation.LEFT, robotEnergy500.getOrientation());
-		assertEquals(300, robotEnergy500.getEnergy(), 0.1);
+		assertEquals(300, robotEnergy500.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test

@@ -1,8 +1,6 @@
 package roborally.path;
 
-import roborally.Robot;
-import roborally.UnreachablePositionException;
-import roborally.Vector;
+import roborally.*;
 
 /**
  * An A* algorithm to find the minimal energy cost for a robot
@@ -10,7 +8,7 @@ import roborally.Vector;
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
 public class MinimalCostAStar extends RobotAStar<MinimalCostNode> {
 
@@ -58,7 +56,7 @@ public class MinimalCostAStar extends RobotAStar<MinimalCostNode> {
 	 * 			to the target node.
 	 * 			| !isTarget(lastNode)
 	 */
-	public double getCost() throws UnreachablePositionException {
+	public EnergyAmount getCost() throws UnreachablePositionException {
 		MinimalCostNode lastNode = run();
 		// If last node is not the target, the target is unreachable
 		if (!isTarget(lastNode))
@@ -77,7 +75,8 @@ public class MinimalCostAStar extends RobotAStar<MinimalCostNode> {
 	 * 			| else
 	 * 			|   result == (target.getRobot() == getRobot())
 	 */
-	protected boolean canHaveAsTarget(ReachNode target) {
+	@Override
+	protected boolean canHaveAsTarget(MinimalCostNode target) {
 		if (target == null)
 			return false;
 		return target.getRobot() == getRobot();
@@ -92,6 +91,7 @@ public class MinimalCostAStar extends RobotAStar<MinimalCostNode> {
 	 * 			| else
 	 * 			|   result == target.equals(node)
 	 */
+	@Override
 	public boolean isTarget(MinimalCostNode node) {
 		MinimalCostNode target = getTarget();
 		return target != null && target.equals(node);

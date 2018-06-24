@@ -7,9 +7,14 @@ import be.kuleuven.cs.som.annotate.Immutable;
  * A class of exceptions thrown when a robot tried to reach
  * an unreachable position in a game of RoboRally.
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public class UnreachablePositionException extends Exception {
 
@@ -27,7 +32,7 @@ public class UnreachablePositionException extends Exception {
 	 */
 	@Basic
 	@Immutable
-	public final Vector getPosition() {
+	public Vector getPosition() {
 		return position;
 	}
 
@@ -38,7 +43,7 @@ public class UnreachablePositionException extends Exception {
 	 */
 	@Basic
 	@Immutable
-	public final Robot getRobot() {
+	public Robot getRobot() {
 		return robot;
 	}
 

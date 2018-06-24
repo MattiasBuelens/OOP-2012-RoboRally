@@ -4,11 +4,7 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 
-import roborally.Board;
-import roborally.InvalidPositionException;
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Vector;
+import roborally.*;
 
 public class RobotPositionTest {
 

@@ -13,11 +13,16 @@ import be.kuleuven.cs.som.annotate.Basic;
  * @invar	The target node is valid.
  * 			| canHaveAsTarget(getTarget())
  * 
+ * @param <N>
+ * 			The node type.
+ * @param <V>
+ * 			The cost value type.
+ * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
-public abstract class AStar<N extends Node> {
+public abstract class AStar<N extends Node<V>, V extends Comparable<? super V>> {
 
 	/**
 	 * Run the pathfinding algorithm and return the last evaluated node.
@@ -83,8 +88,8 @@ public abstract class AStar<N extends Node> {
 			}
 
 			// Inspect all neighbours of current node
-			Iterable<Node> neighbours = current.getNeighbours();
-			for (Node neighbourNode : neighbours) {
+			Iterable<Node<V>> neighbours = current.getNeighbours();
+			for (Node<V> neighbourNode : neighbours) {
 				@SuppressWarnings("unchecked")
 				N neighbour = (N) neighbourNode;
 				Vector neighbourPosition = neighbour.getPosition();
@@ -94,7 +99,7 @@ public abstract class AStar<N extends Node> {
 				}
 
 				// Get old neighbour as it is stored in the node map
-				Node oldNeighbour = getNodeByPosition(neighbourPosition);
+				Node<V> oldNeighbour = getNodeByPosition(neighbourPosition);
 				boolean isBetterNeighbour = false;
 
 				if (oldNeighbour == null) {
@@ -103,9 +108,9 @@ public abstract class AStar<N extends Node> {
 				} else {
 					// If there is already a node at this position,
 					// replace it if it has a higher G-score
-					double oldG = oldNeighbour.getG();
-					double newG = neighbour.getG();
-					isBetterNeighbour = (newG < oldG);
+					V oldG = oldNeighbour.getG();
+					V newG = neighbour.getG();
+					isBetterNeighbour = (newG.compareTo(oldG) < 0);
 				}
 
 				// If the new neighbour is better
@@ -127,8 +132,8 @@ public abstract class AStar<N extends Node> {
 	/**
 	 * Reset the algorithm to its inital state.
 	 * 
-	 * @post	The cost to reach the start node is reset to zero.
-	 * 			| new.getStart().getG() == 0
+	 * @effect	The cost to reach the start node is reset to zero.
+	 * 			| getStart().resetG()
 	 * @post	The open set only contains the start node.
 	 * 			| new.getOpenSet().size() == 1
 	 * 			| new.getOpenSet().element() == getStart()
@@ -148,7 +153,7 @@ public abstract class AStar<N extends Node> {
 		openSet.clear();
 
 		// Reset start node and add to open set
-		getStart().setG(0);
+		getStart().resetG();
 		openSet.offer(getStart());
 	}
 
@@ -230,6 +235,9 @@ public abstract class AStar<N extends Node> {
 		return start != null;
 	}
 
+	/**
+	 * Variable registering the start node of this algorithm.
+	 */
 	private N start;
 
 	/**
@@ -264,10 +272,11 @@ public abstract class AStar<N extends Node> {
 	 * @param target
 	 * 			The node to check.
 	 */
-	protected boolean canHaveAsTarget(N target) {
-		return true;
-	}
+	protected abstract boolean canHaveAsTarget(N target);
 
+	/**
+	 * Variable registering the target node of this algorithm.
+	 */
 	private N target;
 
 	/**
@@ -289,7 +298,13 @@ public abstract class AStar<N extends Node> {
 		return closedSet;
 	}
 
-	private Set<Vector> closedSet = new HashSet<Vector>();
+	/**
+	 * Set of closed nodes.
+	 * 
+	 * <p>These nodes have a minimal actual cost to reach
+	 * them from the start node.</p>
+	 */
+	private final Set<Vector> closedSet = new HashSet<Vector>();
 
 	/**
 	 * Get the open set of this algorithm.
@@ -312,6 +327,9 @@ public abstract class AStar<N extends Node> {
 		this.openSet = openSet;
 	}
 
+	/**
+	 * Set of open nodes.
+	 */
 	private Queue<N> openSet;
 
 	/**
@@ -338,6 +356,10 @@ public abstract class AStar<N extends Node> {
 		return getNodeMap().get(position);
 	}
 
+	/**
+	 * Map mapping positions to nodes with the current
+	 * minimal cost to reach that position.
+	 */
 	private Map<Vector, N> nodeMap = new HashMap<Vector, N>();
 
 }

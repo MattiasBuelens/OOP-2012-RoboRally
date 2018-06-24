@@ -4,9 +4,14 @@ package roborally;
  * A class of exceptions thrown when an invalid width or height was given
  * to a board in a game of RoboRally.
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public class InvalidSizeException extends Exception {
 

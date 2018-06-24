@@ -8,21 +8,29 @@ import java.util.*;
  * @param <E>
  * 			The element type.
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public class SortedList<E> extends AbstractList<E> {
 
 	private final List<E> list;
-	private final Comparator<E> comparator;
+	private final Comparator<? super E> comparator;
 
-	protected SortedList(List<E> list, Comparator<E> comparator) {
+	protected SortedList(List<E> list, Comparator<? super E> comparator) {
+		if (list == null)
+			throw new IllegalArgumentException("List must be effective.");
+
 		this.list = list;
 		this.comparator = comparator;
 	}
 
-	public SortedList(Comparator<E> comparator) {
+	public SortedList(Comparator<? super E> comparator) {
 		this(new ArrayList<E>(), comparator);
 	}
 

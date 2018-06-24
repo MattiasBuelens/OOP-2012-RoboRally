@@ -1,15 +1,13 @@
 package roborally.path;
 
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Vector;
+import roborally.*;
 
 /**
  * A robot node in a minimal energy cost pathfinding algorithm.
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
 public class MinimalCostNode extends RobotNode {
 
@@ -49,15 +47,15 @@ public class MinimalCostNode extends RobotNode {
 	 * 			between this node and the target.
 	 * 			| let
 	 * 			|   amountOfSteps = getPosition().manhattanDistance(target.getPosition())
-	 * 			| setH(getRobot().getStepCost() * amountOfSteps)
+	 * 			| setH(getRobot().getStepCost().multiply(amountOfSteps))
 	 */
 	@Override
-	public void calculateH(Node target) throws IllegalArgumentException {
+	public void calculateH(Node<EnergyAmount> target) throws IllegalArgumentException {
 		if (target == null)
 			throw new IllegalArgumentException("Target must be not effective.");
 
 		long amountOfSteps = getPosition().manhattanDistance(target.getPosition());
-		double h = amountOfSteps * getRobot().getStepCost();
+		EnergyAmount h = getRobot().getStepCost().multiply(amountOfSteps);
 		setH(h);
 	}
 

@@ -6,9 +6,14 @@ import be.kuleuven.cs.som.annotate.*;
  * A class of exceptions thrown when an invalid position was given
  * to a piece in a game of RoboRally.
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public class InvalidPositionException extends Exception {
 
@@ -26,7 +31,7 @@ public class InvalidPositionException extends Exception {
 	 */
 	@Basic
 	@Immutable
-	public final Vector getPosition() {
+	public Vector getPosition() {
 		return position;
 	}
 
@@ -37,7 +42,7 @@ public class InvalidPositionException extends Exception {
 	 */
 	@Basic
 	@Immutable
-	public final Board getBoard() {
+	public Board getBoard() {
 		return board;
 	}
 

@@ -2,6 +2,8 @@ package roborally.test;
 
 import static org.junit.Assert.*;
 
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import org.junit.Before;
@@ -288,4 +290,69 @@ public class BoardTest {
 		assertTrue(batteryBoard.isTerminated());
 		assertTrue(batteryOnBoard.isTerminated());
 	}
+
+	/*
+	 * Iterator
+	 */
+
+	@Test
+	public void iterate_Batteries() throws Exception {
+		// Filter for batteries that have a minimum weight of 40 grams
+		class BatteryPredicate implements roborally.util.Predicate<Piece> {
+			@Override
+			public boolean apply(Piece input) {
+				if (input instanceof Battery)
+					if (((Battery) input).getWeight() > 40)
+						return true;
+				return false;
+			}
+		}
+
+		// Amount of batteries
+		int n = 5;
+		// Amount of batteries heavier than 40 grams
+		int h = 4;
+		// Amount of other junk (not batteries)
+		int j = 40;
+
+		assertTrue(h <= n);
+
+		Board board = new Board(n + j, n + j);
+		Set<Piece> pieces = new HashSet<Piece>();
+
+		// Create batteries
+		for (int i = 0; i < n; i++) {
+			int weight = i < h ? 60 : 30;
+			Battery b = new Battery(weight);
+			pieces.add(b);
+			Vector pos = board.getRandomPosition(b);
+			b.placeOnBoard(board, pos);
+		}
+
+		// Create non-battery pieces
+		for (int i = 0; i < j; i++) {
+			RepairKit b = new RepairKit(60, 100);
+			pieces.add(b);
+			Vector pos = board.getRandomPosition(b);
+			b.placeOnBoard(board, pos);
+		}
+
+		// Get iterator
+		Iterator<Piece> it = board.iterator(new BatteryPredicate());
+
+		// Test that every piece the iterator returns is a piece that
+		// satisfies the condition (battery with weight > 40)
+		for (int i = 0; i < h; i++) {
+			assertTrue(it.hasNext());
+			Piece piece = it.next();
+			assertTrue(pieces.contains(piece));
+			assertTrue(piece instanceof Battery);
+			assertTrue(((Battery) piece).getWeight() > 40);
+
+		}
+
+		// All batteries must have been returned now
+		assertFalse(it.hasNext());
+	}
+
 }

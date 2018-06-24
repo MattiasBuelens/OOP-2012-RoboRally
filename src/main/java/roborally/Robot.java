@@ -1,10 +1,21 @@
 package roborally;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 
-import roborally.path.*;
+import roborally.Piece;
+import roborally.EnergyAmount.Unit;
+import roborally.path.MinimalCostAStar;
+import roborally.path.ReachAStar;
+import roborally.path.ReachNode;
+import roborally.path.RobotNode;
+import roborally.program.Program;
+import roborally.program.command.Command;
+import roborally.util.Function;
 import roborally.util.SortedList;
 import be.kuleuven.cs.som.annotate.Basic;
+import be.kuleuven.cs.som.annotate.Immutable;
 import be.kuleuven.cs.som.annotate.Model;
 import be.kuleuven.cs.som.annotate.Raw;
 
@@ -15,40 +26,46 @@ import be.kuleuven.cs.som.annotate.Raw;
  * 
  * @invar	The robot's orientation is valid.
  * 			| isValidOrientation(getOrientation())
- * @invar	The robot's amount of energy is valid.
- * 			| isValidEnergy(getEnergy())
+ * @invar	The robot's maximum amount of capacity is valid.
+ * 			| isValidMaximumCapacity(getMaximumCapacity())
  * @invar	The robot has a proper set of possessions.
  * 			| hasProperPossessions()
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
-public class Robot extends Piece implements EnergyCarrier {
-
-	/*
-	 * Constructors
-	 */
+public class Robot extends Piece implements EnergyCarrier, CapacityCarrier {
 
 	/**
 	 * Create a new robot with the given orientation and energy.
 	 * 
 	 * @param orientation
 	 * 			The orientation for this new robot.
-	 * @param energy
+	 * @param energyAmount
 	 * 			The energy for this new robot.
 	 * 
 	 * @pre		The amount of energy must be valid.
-	 * 			| isValidEnergy(energy)
+	 * 			| isValidEnergy(energyAmount, new.getCapacityAmount())
 	 * 
-	 * @post	The move cost of the new robot equals 500 Ws.
-	 * 			| new.getMoveCost() == 500.0
+	 * @post	The base step cost of the new robot equals 500 Ws.
+	 * 			| new.getBaseStepCost().getAmount(Unit.WATTSECOND) == 500.0
+	 * @post	The extra step cost per kilogram of possessions
+	 * 			of the new robot equals 50 Ws.
+	 * 			| new.getStepCostPerKilogram().getAmount(Unit.WATTSECOND) == 50.0
 	 * @post	The turn cost of the new robot equals 100 Ws.
-	 * 			| new.getTurnCost() == 100.0
+	 * 			| new.getTurnCost().getAmount(Unit.WATTSECOND) == 100.0
 	 * @post	The shoot cost of the new robot equals 1000 Ws.
-	 * 			| new.getShootCost() == 1000.0
-	 * @post	The maximum amount of energy of the new robot equals 20000 Ws.
-	 * 			| new.getMaximumEnergy() == 20000.0
+	 * 			| new.getShootCost().getAmount(Unit.WATTSECOND) == 1000.0
+	 * @post	The capacity of the new robot equals 20000 Ws.
+	 * 			| new.getCapacity().getAmount(Unit.WATTSECOND) == 20000.0
+	 * @post	The maximum capacity of the new robot equals 20000 Ws.
+	 * 			| new.getMaximumCapacity().getAmount(Unit.WATTSECOND) == 20000.0
 	 * @post	The new robot does not have any possessions yet.
 	 * 			| new.getNbPossessions() == 0
 	 * 
@@ -56,13 +73,50 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			| super()
 	 * @effect	The new robot's orientation is set to the given orientation.
 	 * 			| setOrientation(orientation)
-	 * @effect	The new robot's energy is set to the given amount of energy
-	 * 			if its valid for the new maximum energy.
-	 * 			| setEnergy(energy, new.getMaximumEnergy())
+	 * @effect	The new robot's energy is set to the given amount of energy.
+	 * 			| setEnergy(energyAmount, new.getCapacityAmount())
+	 */
+	public Robot(Orientation orientation, EnergyAmount energyAmount) {
+		// Energy depends on capacity, initialize capacity first
+		this.capacity = new StoredCapacity(getMaximumCapacity());
+		this.energy = new StoredEnergy();
+
+		setOrientation(orientation);
+		setEnergy(energyAmount);
+	}
+
+	/**
+	 * Create a new robot with the given orientation and energy.
+	 * 
+	 * @param orientation
+	 * 			The orientation for this new robot.
+	 * @param energy
+	 * 			The amount of energy for this new robot.
+	 * @param energyUnit
+	 * 			The unit in which the energy amount is expressed.
+	 * 
+	 * @effect	The new robot is initialized with an energy amount
+	 * 			described by the given amount and unit.
+	 * 			| this(orientation, new EnergyAmount(energy, energyUnit))
+	 */
+	public Robot(Orientation orientation, double energy, Unit energyUnit) {
+		this(orientation, new EnergyAmount(energy, energyUnit));
+	}
+
+	/**
+	 * Create a new robot with the given orientation and energy.
+	 * 
+	 * @param orientation
+	 * 			The orientation for this new robot.
+	 * @param energy
+	 * 			The amount of energy in Watt-seconds for this new robot.
+	 * 
+	 * @effect	The new robot is initialized with an energy amount
+	 * 			expressed in Watt-seconds.
+	 * 			| this(orientation, energy, Unit.WATTSECOND)
 	 */
 	public Robot(Orientation orientation, double energy) {
-		setOrientation(orientation);
-		setEnergy(energy);
+		this(orientation, energy, Unit.WATTSECOND);
 	}
 
 	/*
@@ -123,9 +177,9 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			If the given orientation is invalid,
 	 * 			the new orientation is set to facing up.
 	 * 			| if (isValidOrientation(orientation))
-	 * 			|	new.getOrientation() == orientation
+	 * 			|   new.getOrientation() == orientation
 	 * 			| else
-	 * 			|	new.getOrientation() == Orientation.UP
+	 * 			|   new.getOrientation() == Orientation.UP
 	 */
 	public void setOrientation(Orientation orientation) {
 		if (!isValidOrientation(orientation))
@@ -146,6 +200,9 @@ public class Robot extends Piece implements EnergyCarrier {
 		return orientation != null;
 	}
 
+	/**
+	 * Variable registering the orientation this robot is facing.
+	 */
 	private Orientation orientation;
 
 	/*
@@ -154,173 +211,253 @@ public class Robot extends Piece implements EnergyCarrier {
 
 	@Basic
 	@Override
-	public double getEnergy() {
+	public EnergyProperty getEnergy() {
 		return energy;
+	}
+
+	@Override
+	public EnergyAmount getEnergyAmount() {
+		return getEnergy().getAmount();
+	}
+
+	@Override
+	public double getEnergyAmount(Unit unit) {
+		return getEnergyAmount().getAmount(unit);
 	}
 
 	/**
 	 * Set the amount of energy stored by this robot.
 	 * 
-	 * @param energy
+	 * @param amount
 	 * 			The new amount of energy.
 	 * 
-	 * @effect	The robot's energy is set for this robot's maximum energy.
-	 * 			| setEnergy(energy, getMaximumEnergy())
-	 * @see #setEnergy(double, double)
+	 * @effect	The robot's energy is set for this robot's capacity.
+	 * 			| setEnergy(amount, getCapacity().getAmount())
+	 * @see #setEnergy(EnergyAmount, EnergyAmount)
 	 */
-	@Override
-	public void setEnergy(double energy) throws IllegalStateException {
-		setEnergy(energy, getMaximumEnergy());
+	public void setEnergy(EnergyAmount amount) throws IllegalStateException {
+		setEnergy(amount, getCapacity().getAmount());
 	}
 
 	/**
 	 * Set the amount of energy stored by this robot
 	 * for the given maximum amount of energy.
 	 * 
-	 * @param energy
+	 * @param amount
 	 * 			The new amount of energy.
-	 * @param maxEnergy
+	 * @param maximumAmount
 	 * 			The maximum amount of energy.
 	 * 
 	 * @pre		The amount of energy must be valid.
-	 * 			| isValidEnergy(energy, maxEnergy)
+	 * 			| isValidEnergy(amount, maximumAmount)
 	 * @post	The new amount of energy equals the given amount.
-	 * 			| new.getEnergy() == energy
+	 * 			| new.getEnergyAmount().equals(energy)
 	 * @throws	IllegalStateException
 	 * 			If the robot is terminated.
 	 * 			| isTerminated()
-	 * @see #isValidEnergy(double, double)
+	 * @see #isValidEnergy(EnergyAmount, EnergyAmount)
 	 */
 	@Model
-	void setEnergy(double energy, double maxEnergy) throws IllegalStateException {
+	void setEnergy(EnergyAmount amount, EnergyAmount maximumAmount) throws IllegalStateException {
 		if (isTerminated())
-			throw new IllegalStateException("Robot must not be terminated.");
+			throw new IllegalStateException("Robot cannot be terminated.");
 
-		assert isValidEnergy(energy, maxEnergy);
-		this.energy = energy;
+		assert isValidEnergy(amount, maximumAmount);
+		getEnergy().setAmount(amount, maximumAmount);
 	}
 
 	/**
-	 * Check whether the given amount of energy is a valid amount for this robot.
-	 * 
-	 * @param energy
-	 * 			The amount of energy to validate.
-	 * 
-	 * @return	True if the amount of energy is valid for the maximum amount
-	 * 			of energy of this robot, false otherwise.
-	 * 			| result == isValidEnergy(energy, getMaximumEnergy())
-	 * @see #isValidEnergy(double, double)
+	 * @return	True if and only if the amount of energy is valid
+	 * 			for this robot's energy property.
+	 * 			| result == getEnergy().isValidAmount(amount)
+	 * @see #isValidEnergy(EnergyAmount, EnergyAmount)
 	 */
-	public boolean isValidEnergy(double energy) {
-		return isValidEnergy(energy, getMaximumEnergy());
+	@Override
+	public boolean isValidEnergy(EnergyAmount amount) {
+		return isValidEnergy(amount, getCapacity().getAmount());
 	}
 
 	/**
-	 * Check whether the given amount of energy is valid.
+	 * Check whether the given amount of energy is a valid amount
+	 * for the given maximum amount of energy.
 	 * 
-	 * @param energy
+	 * @param amount
 	 * 			The amount of energy to validate.
-	 * @param maximumEnergy
+	 * @param maximumAmount
 	 * 			The maximum amount of energy.
 	 * 
-	 * @return	True if the amount of energy is positive and does not exceed
-	 * 			the given maximum amount of energy, false otherwise.
-	 * 			| result == (energy >= 0) && (energy <= maximumEnergy)
+	 * @return	True if and only if the given amount of energy is
+	 * 			a valid amount for an energy property with
+	 * 			the given maximum amount of energy.
+	 * 			| result == EnergyProperty.isValidAmount(amount, maximumAmount)
+	 * @see EnergyProperty#isValidAmount(EnergyAmount, EnergyAmount)
 	 */
-	public static boolean isValidEnergy(double energy, double maximumEnergy) {
-		return energy >= 0 && energy <= maximumEnergy;
+	public static boolean isValidEnergy(EnergyAmount amount, EnergyAmount maximumAmount) {
+		return EnergyProperty.isValidAmount(amount, maximumAmount);
 	}
 
-	private double energy;
+	/**
+	 * Variable registering the amount of energy stored by this robot.
+	 */
+	private final EnergyProperty energy;
+
+	/*
+	 * Capacity
+	 */
 
 	@Basic
 	@Override
-	public double getMaximumEnergy() {
-		return maximumEnergy;
+	public EnergyProperty getCapacity() {
+		return capacity;
 	}
+
+	@Override
+	public EnergyAmount getCapacityAmount() {
+		return getCapacity().getAmount();
+	}
+
+	@Override
+	public double getCapacityAmount(Unit unit) {
+		return getCapacityAmount().getAmount(unit);
+	}
+
+	/**
+	 * Variable registering the amount of capacity stored by this robot.
+	 */
+	private final EnergyProperty capacity;
 
 	/**
 	 * Check whether the given maximum energy amount is valid for this robot.
 	 * 
-	 * @return	True if the given maximum amount is strictly positive.
+	 * @return	True if the given maximum amount is positive.
 	 * 			| result == (maximumEnergy > 0)
 	 */
-	public static boolean isValidMaximumEnergy(double maximumEnergy) {
-		return maximumEnergy > 0;
+	@Override
+	public boolean isValidCapacity(EnergyAmount capacity) {
+		return EnergyProperty.isValidMaximumAmount(capacity) && getCapacity().isValidAmount(capacity);
 	}
 
-	private final double maximumEnergy = 20000;
+	/**
+	 * Get the maximum amount of capacity that can be stored
+	 * by this robot.
+	 */
+	@Basic
+	public EnergyAmount getMaximumCapacity() {
+		return maximumCapacity;
+	}
 
 	/**
-	 * Get the amount of energy of this robot as a fraction of the maximum energy amount.
+	 * Check whether the given maximum capacity amount is valid
+	 * for a robot.
 	 * 
-	 * @return	The result is the amount of energy divided by the maximum energy amount.
+	 * @return	True if the given maximum amount is a valid
+	 * 			maximum amount for an energy property.
+	 * 			| result == EnergyProperty.isValidMaximumAmount(maximumEnergy)
+	 */
+	public static boolean isValidMaximumCapacity(EnergyAmount maximumCapacity) {
+		return EnergyProperty.isValidMaximumAmount(maximumCapacity);
+	}
+
+	/**
+	 * Variable registering the maximum energy capacity
+	 * that can be stored by a robot.
+	 */
+	private static final EnergyAmount maximumCapacity = new EnergyAmount(20000, Unit.WATTSECOND);
+
+	/*
+	 * Energy operations
+	 */
+
+	/**
+	 * Get the amount of energy of this robot as a fraction of the capacity.
+	 * 
+	 * @return	The result is the amount of energy divided by the capacity of this robot.
 	 * 			This double division is precise to at least two decimals.
-	 * 			| result == getEnergy() / getMaximumEnergy()
+	 * 			| result == getEnergyAmount().asFractionOf(getCapacityAmount())
 	 * @see #getEnergy()
-	 * @see #getMaximumEnergy()
+	 * @see #getCapacity()
 	 */
 	public double getEnergyFraction() {
-		assert isValidEnergy(getEnergy());
-		assert isValidMaximumEnergy(getMaximumEnergy());
-		return getEnergy() / getMaximumEnergy();
+		assert isValidEnergy(getEnergy().getAmount());
+		assert isValidCapacity(getCapacity().getAmount());
+		return getEnergyAmount().asFractionOf(getCapacityAmount());
 	}
 
-	@Override
-	public void recharge(double amount) {
+	/**
+	 * Recharge this robot with the given amount of energy.
+	 * 
+	 * @param amount
+	 * 			The extra amount of energy.
+	 * 
+	 * @pre		This robot can be recharged with the given amount.
+	 * 			| canRecharge(amount)
+	 * 
+	 * @effect	This robot's energy property is recharged with the given amount.
+	 * 			| getEnergy().recharge(amount)
+	 */
+	public void recharge(EnergyAmount amount) {
 		assert canRecharge(amount);
-		setEnergy(getEnergy() + amount);
+		getEnergy().recharge(amount);
 	}
 
 	/**
+	 * Check whether this robot can be recharged
+	 * with the given amount of energy.
+	 * 
 	 * @return	False if this robot is terminated.
 	 * 			| if (isTerminated())
 	 * 			|   result == false
-	 * @return	False if the extra energy amount is negative.
-	 * 			| if (amount < 0)
-	 * 			|   result == false
-	 * @return	Otherwise, true if and only if the new amount of energy is valid.
+	 * @return	Otherwise, true if and only if this robot's
+	 * 			energy property can be recharged with
+	 * 			the given amount.
 	 * 			| else
-	 * 			|   result == isValidEnergy(getEnergy() + amount)
+	 * 			|   result == getEnergy().canRecharge(amount)
 	 */
-	@Override
-	public boolean canRecharge(double amount) {
+	public boolean canRecharge(EnergyAmount amount) {
 		if (isTerminated())
 			return false;
-		if (amount < 0)
-			return false;
-		return isValidEnergy(getEnergy() + amount);
+		return getEnergy().canRecharge(amount);
 	}
 
-	@Override
-	public void drain(double amount) {
+	/**
+	 * Drain this robot with the given amount of energy.
+	 * 
+	 * @param amount
+	 * 			The amount of energy to drain.
+	 * 
+	 * @pre		This robot can be drained with the given amount.
+	 * 			| canDrain(amount)
+	 * 
+	 * @effect	This robot's energy property is drained with the given amount.
+	 * 			| getEnergy().drain(amount)
+	 */
+	public void drain(EnergyAmount amount) {
 		assert canDrain(amount);
-		setEnergy(getEnergy() - amount);
+		getEnergy().drain(amount);
 	}
 
 	/**
+	 * Check whether this robot can be drained
+	 * with the given amount of energy.
+	 * 
 	 * @return	False if this robot is terminated.
 	 * 			| if (isTerminated())
 	 * 			|   result == false
-	 * @return	False if the extra energy amount is negative.
-	 * 			| if (amount < 0)
-	 * 			|   result == false
-	 * @return	Otherwise, true if and only if the new amount of energy is valid.
+	 * @return	Otherwise, true if and only if this robot's
+	 * 			energy property can be drained with
+	 * 			the given amount.
 	 * 			| else
-	 * 			|   result == isValidEnergy(getEnergy() - amount)
+	 * 			|   result == getEnergy().canDrain(amount)
 	 */
-	@Override
-	public boolean canDrain(double amount) {
+	public boolean canDrain(EnergyAmount amount) {
 		if (isTerminated())
 			return false;
-		if (amount < 0)
-			return false;
-		return isValidEnergy(getEnergy() - amount);
+		return getEnergy().canDrain(amount);
 	}
 
 	/**
 	 * Transfer the given amount of energy from this robot
-	 * to the given receiving carrier.
+	 * to the given receiving energy carrier.
 	 * 
 	 * <p>This operation is illegal for robots and will always
 	 * throw an exception.
@@ -328,10 +465,11 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * @throws	UnsupportedOperationException
 	 * 			Always, since transferring energy from a robot
 	 * 			is an illegal operation.
+	 * 			| true
 	 */
 	@Override
-	public void transfer(EnergyCarrier receivingCarrier, double amount) throws UnsupportedOperationException {
-		assert canTransfer(receivingCarrier, amount);
+	public void transfer(EnergyCarrier receiver, EnergyAmount amount) throws UnsupportedOperationException {
+		assert canTransfer(receiver, amount);
 		throw new UnsupportedOperationException("Robots cannot transfer energy to other energy carriers.");
 	}
 
@@ -341,19 +479,41 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			| result == false
 	 */
 	@Override
-	public boolean canTransfer(EnergyCarrier receivingCarrier, double amount) {
+	public boolean canTransfer(EnergyCarrier receiver, EnergyAmount amount) {
+		return false;
+	}
+
+	/**
+	 * Transfer the given amount of capacity from this robot
+	 * to the given receiving capacity carrier.
+	 * 
+	 * <p>This operation is illegal for robots and will always
+	 * throw an exception.
+	 * 
+	 * @throws	UnsupportedOperationException
+	 * 			Always, since transferring capacity from a robot
+	 * 			is an illegal operation.
+	 * 			| true
+	 */
+	@Override
+	public void transfer(CapacityCarrier receiver, EnergyAmount amount) throws UnsupportedOperationException {
+		assert canTransfer(receiver, amount);
+		throw new UnsupportedOperationException("Robots cannot transfer capacity to other capacity carriers.");
+	}
+
+	/**
+	 * @return	Always false, since transferring capacity from a robot
+	 * 			is an illegal operation.
+	 * 			| result == false
+	 */
+	@Override
+	public boolean canTransfer(CapacityCarrier receiver, EnergyAmount amount) {
 		return false;
 	}
 
 	/*
 	 * Possessions
 	 */
-
-	/**
-	 * The possessions of this robot are stored as a sorted list
-	 * of items, sorted on their weight in descending order.
-	 */
-	private List<Item> possessions = new SortedList<Item>(Collections.reverseOrder(new ItemWeightComparator()));
 
 	/**
 	 * Get the number of possessions of this robot.
@@ -367,7 +527,7 @@ public class Robot extends Piece implements EnergyCarrier {
 	/**
 	 * Get the <i>index</i>-th heaviest possession of this robot.
 	 * That is, get the possession which has a weight greater or
-	 * equal to the weight of all but <code>(index - 1)</code> possessions.
+	 * equal to the weight of all but {@code (index - 1)} possessions.
 	 * 
 	 * @param index
 	 * 			The index of the possession to return.
@@ -400,24 +560,86 @@ public class Robot extends Piece implements EnergyCarrier {
 	}
 
 	/**
-	 * Check whether this robot has a proper set of possessions.
+	 * Check whether this robot can have the given item
+	 * as one of its possessions at the given index.
 	 * 
-	 * @return	True if and only if this robot can have each of
-	 * 			its possessions and if none of its possessions
-	 * 			are placed on a board.
-	 * 			| for each index in 1..getNbPossessions() :
-	 * 			|   canHaveAsPossession(getPossessionAt(index))
-	 * 			|    && !getPossessionAt(index).isPlaced()
+	 * @param item
+	 * 			The item to check.
+	 * @param index
+	 * 			The index of the item.
+	 * 
+	 * @return	False if the given index is not positive or exceeds
+	 * 			the number of possessions of this robot.
+	 * 			| if ( (index < 1) || (index > getNbPossessions()) )
+	 * 			|   result == false
+	 * @return	False if this robot cannot have the given item
+	 * 			as one of its possessions.
+	 * 			| else if (!canHaveAsPossession(item))
+	 * 			|   result == false
+	 * @return	Otherwise, true if and only if the given item is
+	 *          not already registered at another index, and
+	 *          all possessions with lower indexes have a weight
+	 *          greater than or equal to the weight of the given item,
+	 *          and all possessions with greater indexes have a weight
+	 *          less than or equal to the weight of the given item.
+	 * 			| else result ==
+	 * 			|   for each pos in 1..getNbPossessions() :
+	 * 			|     ( (pos == index) || (getPossessionAt(pos) != item) )
+	 * 			|     && ( (pos >= index) || (getPossessionAt(pos).getWeight() >= item.getWeight()) )
+	 * 			|     && ( (pos <= index) || (getPossessionAt(pos).getWeight() <= item.getWeight()) )
 	 */
-	public boolean hasProperPossessions() {
-		for (Item item : possessions) {
-			if (!canHaveAsPossession(item))
+	@Raw
+	public boolean canHaveAsPossessionAt(Item item, int index) {
+		if ((index < 1) || (index > getNbPossessions()))
+			return false;
+		if (!canHaveAsPossession(item))
+			return false;
+		for (int pos = 1; pos <= getNbPossessions(); pos++) {
+			Item current = getPossessionAt(pos);
+			if ((pos != index) && (current == item))
 				return false;
-			if (item.isPlaced())
+			if ((pos < index) && (current.getWeight() < item.getWeight()))
+				return false;
+			if ((pos > index) && (current.getWeight() > item.getWeight()))
 				return false;
 		}
 		return true;
 	}
+
+	/**
+	 * Check whether this robot has a proper set of possessions.
+	 * 
+	 * @return	True if and only if this robot can have each of
+	 * 			its possessions at its current index and if
+	 * 			none of its possessions are placed on any board.
+	 * 			| for each index in 1..getNbPossessions() :
+	 * 			|   canHaveAsPossessionAt(getPossessionAt(index), index)
+	 * 			|    && !getPossessionAt(index).isPlaced()
+	 */
+	public boolean hasProperPossessions() {
+		for (int index = 1; index <= getNbPossessions(); index++) {
+			if (!canHaveAsPossessionAt(getPossessionAt(index), index))
+				return false;
+			if (getPossessionAt(index).isPlaced())
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Sorted list of items possessed by this robot,
+	 * sorted on their weight in descending order.
+	 * 
+	 * @invar	The list of possessions is effective.
+	 * 			| possessions != null
+	 * @invar	This robot can have each possession in the list
+	 * 			and no possession in the list is placed on any board.
+	 * 			| for each possession in possessions :
+	 * 			|   canHaveAsPossession(possession)
+	 * 			|    && !possession.isPlaced()
+	 */
+	private final List<Item> possessions = new SortedList<Item>(
+			Collections.reverseOrder(new ItemWeightComparator<Item>()));
 
 	/**
 	 * Get a set of all the possessions of this robot.
@@ -446,8 +668,8 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			|   result.contains(getPossessionAt(index))
 	 * 			|     == possessionType.isInstance(getPossessionAt(index))
 	 */
-	public <T extends Item> Set<T> getPossessions(Class<T> possessionType) {
-		Set<T> typedPieces = new HashSet<T>();
+	public <I extends Item> Set<I> getPossessions(Class<I> possessionType) {
+		Set<I> typedPieces = new HashSet<I>();
 		for (Item item : possessions) {
 			if (possessionType.isInstance(item)) {
 				typedPieces.add(possessionType.cast(item));
@@ -472,6 +694,62 @@ public class Robot extends Piece implements EnergyCarrier {
 	@Raw
 	public boolean hasAsPossession(Item item) {
 		return possessions.contains(item);
+	}
+
+	/**
+	 * Get the total value of all possessions of this
+	 * robot using the given extractor.
+	 *
+	 * @param	extractor
+	 * 			The extractor to be used in evaluating
+	 * 			all possessions of this robot.
+	 *
+	 * @return 	The total amount returned by applying the given
+	 * 			extractor to all possessions of this robot.
+	 * 			| result ==
+	 * 			|   sum({ possession in getPossessions() : extractor.apply(possession)})
+	 * 
+	 * @throws 	IllegalStateException
+	 * 			If this robot is already terminated.
+	 * 			| isTerminated()
+	 * @throws  IllegalArgumentException
+	 *          If the given extractor is not effective.
+	 * 			| extractor == null
+	 */
+	public BigDecimal getTotalFromPossessions(Function<? super Item, ? extends BigDecimal> extractor)
+			throws IllegalStateException, IllegalArgumentException {
+		if (isTerminated())
+			throw new IllegalStateException("Robot must not be terminated.");
+		if (extractor == null)
+			throw new IllegalArgumentException("Extractor must be effective.");
+
+		BigDecimal total = BigDecimal.ZERO;
+		for (Item item : possessions) {
+			total = total.add(extractor.apply(item));
+		}
+		return total;
+	}
+
+	/**
+	 * Get the total weight of all possessions of this robot.
+	 * 
+	 * @return	The sum of the weight weights of all possessions
+	 * 			of this robot.
+	 * 			| result ==
+	 * 			|   sum({ possession in getPossessions() : possession.getWeight()})
+	 *
+	 * @throws 	IllegalStateException
+	 * 			If this robot is already terminated.
+	 * 			| isTerminated()
+	 */
+	public BigInteger getPossessionsWeight() throws IllegalStateException {
+		BigDecimal weight = getTotalFromPossessions(new Function<Item, BigDecimal>() {
+			@Override
+			public BigDecimal apply(Item item) {
+				return BigDecimal.valueOf(item.getWeight());
+			}
+		});
+		return weight.toBigInteger();
 	}
 
 	/**
@@ -569,15 +847,15 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			The possession to use.
 	 *
 	 * @effect	If the given possession is not terminated,
-	 * 			the item is used on this robot.
+	 * 			the possession is used on this robot.
 	 * 			| if(!item.isTerminated())
 	 * 			|   item.use(this)
 	 * @effect	If the given possession is terminated,
 	 * 			the possession is removed as one of
 	 * 			this robot's possessions.
 	 * 			| if(item.isTerminated())
-	 * 			|   removeAsPossession(item) 
-	 * 
+	 * 			|   removeAsPossession(item)
+	 *  
 	 * @throws	IllegalStateException
 	 * 			If this robot cannot have the given possession as
 	 * 			one of its possessions.
@@ -625,8 +903,7 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			If the given item is placed on a board.
 	 * 			| item.isPlaced()
 	 */
-	@Model
-	void addAsPossession(Item item) throws IllegalStateException, IllegalArgumentException {
+	public void addAsPossession(Item item) throws IllegalStateException, IllegalArgumentException {
 		if (!canHaveAsPossession(item))
 			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
 		if (hasAsPossession(item))
@@ -659,14 +936,88 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			one of its possessions.
 	 * 			| !hasAsPossession(item)
 	 */
-	@Model
-	void removeAsPossession(Item item) throws IllegalStateException, IllegalArgumentException {
+	public void removeAsPossession(Item item) throws IllegalStateException, IllegalArgumentException {
 		if (!canHaveAsPossession(item))
 			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
 		if (!hasAsPossession(item))
 			throw new IllegalArgumentException("Robot does not possess this item.");
 
 		possessions.remove(item);
+	}
+
+	/**
+	 * Transfer all possessions of this robot
+	 * to the given receiving robot.
+	 * 
+	 * @param receivingRobot
+	 * 			The receiving robot.
+	 * 
+	 * @post	This robot no longer has any possessions.
+	 * 			| new.getNbPossessions() == 0
+	 *
+	 * @post	Each possession of this robot is now either
+	 * 			possessed by the receiving robot, or is terminated
+	 * 			if the receiving robot cannot have it as one
+	 * 			of its possessions.
+	 * 			| for each index in 1..this.getNbPossessions() :
+	 * 			|   let
+	 * 			|      possession = this.getPossessionAt(index)
+	 * 			|   if (receivingRobot.canHaveAsPossession(possession))
+	 * 			|      (new receivingRobot).hasAsPossessionpossession)
+	 * 			|   else
+	 * 			|      (new possession).isTerminated()
+	 * 
+	 * @post	The receiving robot still has all of its already
+	 * 			possessed items, however they may be at
+	 * 			different indexes.
+	 * 			| for each index in 1..receivingRobot.getNbPossessions() :
+	 * 			|   (new receivingRobot).hasAsPossession(receivingRobot.getPossessionAt(index))
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot is terminated or
+	 * 			is not placed on any board.
+	 * 			| isTerminated() || !isPlaced()
+	 * @throws	IllegalArgumentException
+	 * 			If the receiving robot is not effective
+	 * 			or is not placed on a board.
+	 * 			| receivingRobot == null || !receivingRobot.isPlaced()
+	 * @throws	IllegalArgumentException
+	 * 			If the receiving robot equals this robot.
+	 * 			| receivingRobot == this
+	 * @throws	IllegalArgumentException
+	 * 			If the receiving robot is placed
+	 * 			on a different board.
+	 * 			| receivingRobot.getBoard() != getBoard()
+	 * @throws	IllegalArgumentException
+	 * 			If the receiving robot is not placed
+	 * 			next to this robot.
+	 * 			| receivingRobot.getPosition().manhattanDistance(getPosition()) != 1
+	 */
+	public void transferItems(Robot receivingRobot) throws IllegalStateException, IllegalArgumentException {
+		if (isTerminated() || !isPlaced())
+			throw new IllegalStateException("Robot must be placed on a board.");
+		if (receivingRobot == null || !receivingRobot.isPlaced())
+			throw new IllegalArgumentException("Receiving robot must be effective and placed on a board.");
+		if (receivingRobot == this)
+			throw new IllegalArgumentException("Receiving robot cannot equal this robot.");
+		if (receivingRobot.getBoard() != getBoard())
+			throw new IllegalArgumentException("Receiving robot must be on the same board as this robot.");
+		if (receivingRobot.getPosition().manhattanDistance(getPosition()) != 1)
+			throw new IllegalArgumentException("Robot and receiving robot must be located next to each other.");
+
+		Iterator<Item> it = possessions.iterator();
+		while (it.hasNext()) {
+			Item item = it.next();
+			if (receivingRobot.canHaveAsPossession(item)) {
+				// Add item to receiving robot
+				receivingRobot.addAsPossession(item);
+			} else {
+				// Cannot transfer item, discard
+				item.terminate();
+			}
+			// Remove item from this robot
+			it.remove();
+		}
 	}
 
 	/*
@@ -702,7 +1053,7 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 
 	 * @return	If this robot is placed, the next position is retrieved
 	 * 			from this robot's board with its current position and orientation.
-	 * @return	| if (isPlaced())
+	 *			| if (isPlaced())
 	 * 			|   result == getBoard().getNextPosition(getPosition(), getOrientation())
 	 * @return	If this robot is not placed on any board, null is returned.
 	 * 			| if (!isPlaced())
@@ -727,13 +1078,66 @@ public class Robot extends Piece implements EnergyCarrier {
 
 	/**
 	 * Get the energy cost for one step forward.
+	 * 
+	 * @return	The step cost is the sum of the base step cost
+	 * 			and the total weight of this robot's possessions
+	 * 			in kilogram times the extra step cost per kilogram.
+	 * 			| result.getAmount(Unit.WATTSECOND)
+	 * 			|   == getBaseStepCost().getAmount(Unit.WATTSECOND)
+	 * 			|       + ( getStepCostPerKilogram().getAmount(Unit.WATTSECOND)
+	 * 			|           * (getPossessionsWeight() / 1000) )
+	 * 
+	 * @throws 	IllegalStateException
+	 * 			If this robot is already terminated.
+	 * 			| isTerminated()
+	 * 
+	 * @note	The total weight of possessions is rounded down
+	 * 			to the nearest kilogram.
+	 */
+	public EnergyAmount getStepCost() throws IllegalStateException {
+		if (isTerminated())
+			throw new IllegalStateException("Robot must not be terminated.");
+
+		// Base step cost of a robot
+		EnergyAmount cost = getBaseStepCost();
+		// Weight of possessions in kilogram, rounded down
+		BigInteger weight = getPossessionsWeight();
+		long weightInKilogram = weight.divide(BigInteger.valueOf(1000)).longValue();
+		// Add an extra cost for every kilogram of possessions
+		cost = cost.add(getStepCostPerKilogram().multiply(weightInKilogram));
+		return cost;
+	}
+
+	/**
+	 * Get the base step cost of this robot,
+	 * i.e. the step cost if this robot had no possessions.
 	 */
 	@Basic
-	public double getStepCost() {
+	@Immutable
+	public EnergyAmount getBaseStepCost() {
 		return stepCost;
 	}
 
-	private static final double stepCost = 500;
+	/**
+	 * Variable registering the base step cost of a robot.
+	 */
+	private static final EnergyAmount stepCost = new EnergyAmount(500.0, Unit.WATTSECOND);
+
+	/**
+	 * Get the extra step cost for this robot
+	 * per kilogram of possessions that it carries.
+	 */
+	@Basic
+	@Immutable
+	public EnergyAmount getStepCostPerKilogram() {
+		return stepCostPerKilogram;
+	}
+
+	/**
+	 * Variable registering the extra step cost
+	 * per kilogram of possessions of a robot.
+	 */
+	private static final EnergyAmount stepCostPerKilogram = new EnergyAmount(50.0, Unit.WATTSECOND);
 
 	/**
 	 * Turn this robot clockwise.
@@ -774,6 +1178,29 @@ public class Robot extends Piece implements EnergyCarrier {
 	}
 
 	/**
+	 * Turn this robot clockwise.
+	 * 
+	 * @param rotation
+	 * 			The rotation to turn.
+	 * 
+	 * @pre		The robot must have enough energy to turn.
+	 * 			| canTurn()
+	 * @effect	The orientation of this robot is turned
+	 * 			in the given rotation.
+	 * 			| setOrientation(getOrientation().turn(rotation))
+	 * @effect	The energy of this robot is decreased with
+	 * 			the energy cost of one turn.
+	 * 			| drain(getTurnCost())
+	 * @see #canTurn()
+	 */
+	public void turn(Rotation rotation) {
+		assert canTurn();
+
+		setOrientation(getOrientation().turn(rotation));
+		drain(getTurnCost());
+	}
+
+	/**
 	 * Check whether this robot has enough energy to turn once.
 	 * 
 	 * @return	True if the energy cost of one turn can be drained from this robot.
@@ -788,11 +1215,15 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * Get the energy cost for one turn.
 	 */
 	@Basic
-	public double getTurnCost() {
+	@Immutable
+	public EnergyAmount getTurnCost() {
 		return turnCost;
 	}
 
-	private static final double turnCost = 100;
+	/**
+	 * Variable registering the base turn cost of a robot.
+	 */
+	private static final EnergyAmount turnCost = new EnergyAmount(100.0, Unit.WATTSECOND);
 
 	/**
 	 * Get the minimal amount of energy required to reach a given position.
@@ -816,7 +1247,7 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			regardless of its energy.
 	 * 			| !isReachable(position)
 	 */
-	public double getMinimalCostToReach(Vector position) throws IllegalStateException, InvalidPositionException,
+	public EnergyAmount getMinimalCostToReach(Vector position) throws IllegalStateException, InvalidPositionException,
 			UnreachablePositionException {
 		if (!isPlaced())
 			throw new IllegalStateException("Robot must be placed and not terminated.");
@@ -871,7 +1302,7 @@ public class Robot extends Piece implements EnergyCarrier {
 	 */
 	public boolean isReachable(Vector position) throws IllegalStateException {
 		try {
-			return getMinimalCostToReach(position) >= 0;
+			return getMinimalCostToReach(position).isGreaterThanOrEqual(EnergyAmount.ZERO);
 		} catch (InvalidPositionException e) {
 			return false;
 		} catch (UnreachablePositionException e) {
@@ -1031,7 +1462,7 @@ public class Robot extends Piece implements EnergyCarrier {
 		ReachNode bestThisNode = thisReachable.get(this.getPosition());
 		ReachNode bestOtherNode = otherReachable.get(otherRobot.getPosition());
 		long bestDistance = this.getPosition().manhattanDistance(otherRobot.getPosition());
-		double bestCost = bestThisNode.getG() + bestOtherNode.getG();
+		EnergyAmount bestCost = bestThisNode.getG().add(bestOtherNode.getG());
 
 		// Check all reachable nodes for this robot
 		for (ReachNode thisNode : thisReachable.values()) {
@@ -1046,10 +1477,10 @@ public class Robot extends Piece implements EnergyCarrier {
 					if (otherNode == null)
 						continue;
 					// Get the total cost to reach these positions
-					double cost = thisNode.getG() + otherNode.getG();
-					// If the distance is lower or the cost is the same
+					EnergyAmount cost = thisNode.getG().add(otherNode.getG());
+					// If the distance is lower or the cost is lower
 					// for the same best distance, store as current best
-					if (distance < bestDistance || cost < bestCost) {
+					if (distance < bestDistance || cost.isLessThan(bestCost)) {
 						bestThisNode = thisNode;
 						bestOtherNode = otherNode;
 						bestDistance = distance;
@@ -1078,26 +1509,16 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			| canShoot()
 	 * @effect	If this robot is not placed on any board,
 	 * 			nothing happens.
-	 * @effect	If this robot is placed on a board,
-	 * 			the energy of this robot is decreased with
+	 * @effect	All shoot targets are hit by the laser.
+	 * 			| if (isPlaced())
+	 * 			|   for each piece in getShootTargets()
+	 * 			|      piece.hit()
+	 * @effect	The energy of this robot is decreased with
 	 * 			the energy cost of one shot.
 	 * 			| if (isPlaced())
 	 * 			|   drain(getShootCost())
-	 * @effect	The target position is the first occupied position
-	 * 			on the board in the direction this robot is facing.
-	 * 			If this robot is placed on a board, all the pieces
-	 * 			on the board at the target position are terminated.
-	 * 			| if (isPlaced())
-	 * 			|    let
-	 * 			|      possibleTargets = {target:Vector 
-	 * 			|            | getOrientation() == Orientation.fromVector(target.substract(getPosition()))
-	 * 			|               && target.manhattanDistance(getPosition()) >= 1
-	 * 			|               && getBoard().hasPiecesAt(target)} 
-	 * 			|      firstTarget = {first:Vector | first in possibleHits 
-	 * 			|            && for each target in possibleTargets :
-	 * 			|                  first.manhattanDistance(getPosition()) <= target.manhattanDistance(getPosition())} 
-	 * 			|    for each piece in getBoard().getPiecesAt(firstHit)
-	 * 			|      piece.terminate()
+	 * 
+	 * @see #getShootTargets()
 	 */
 	public void shoot() {
 		assert canShoot();
@@ -1105,6 +1526,43 @@ public class Robot extends Piece implements EnergyCarrier {
 		// Do nothing if not placed
 		if (!isPlaced())
 			return;
+
+		// Shoot at targets
+		Set<Piece> pieces = new HashSet<Piece>(getShootTargets());
+		for (Piece victim : pieces) {
+			victim.hit();
+		}
+
+		// Drain the shoot cost
+		drain(getShootCost());
+	}
+
+	/**
+	 * Get all pieces which will be hit when this robot shoots.
+	 * 
+	 * @return	If this robot is not placed on any board,
+	 * 			the resulting set is empty.
+	 * 			| if (!isPlaced())
+	 * 			|   result.isEmpty()
+	 * @return	Otherwise, the resulting set contains all pieces
+	 * 			on the board at the first occupied position
+	 * 			in the direction this robot is facing.
+	 * 			| else
+	 * 			|   let
+	 * 			|      possibleTargets = {target:Vector 
+	 * 			|            | getOrientation() == Orientation.fromVector(target.substract(getPosition()))
+	 * 			|               && target.manhattanDistance(getPosition()) >= 1
+	 * 			|               && getBoard().hasPiecesAt(target)} 
+	 * 			|      firstTarget = {first:Vector | first in possibleHits 
+	 * 			|            && for each target in possibleTargets :
+	 * 			|                  first.manhattanDistance(getPosition()) <= target.manhattanDistance(getPosition())}
+	 * 			|
+	 * 			|   result.equals(getBoard().getPiecesAt(firstTarget))
+	 */
+	public Set<Piece> getShootTargets() {
+		// No targets if not placed
+		if (!isPlaced())
+			return Collections.emptySet();
 
 		Orientation direction = getOrientation();
 		Vector position = getPosition();
@@ -1117,15 +1575,8 @@ public class Robot extends Piece implements EnergyCarrier {
 			target = board.getNextPosition(target, direction);
 		} while (target != null && !board.hasPiecesAt(target));
 
-		// Terminate all positions at the target position
-		Set<Piece> pieces = new HashSet<Piece>(board.getPiecesAt(target));
-
-		for (Piece victim : pieces) {
-			victim.terminate();
-		}
-
-		// Drain the shoot cost
-		drain(getShootCost());
+		// Return pieces at the target position
+		return board.getPiecesAt(target);
 	}
 
 	/**
@@ -1143,11 +1594,178 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * Get the energy cost for one shot.
 	 */
 	@Basic
-	public double getShootCost() {
+	@Immutable
+	public EnergyAmount getShootCost() {
 		return shootCost;
 	}
 
-	private final static double shootCost = 1000;
+	/**
+	 * Variable registering the base shoot cost of a robot.
+	 */
+	private final static EnergyAmount shootCost = new EnergyAmount(1000.0, Unit.WATTSECOND);
+
+	/**
+	 * @effect	If this robot's hit damage is less than
+	 * 			this robot's capacity, it is drained from
+	 * 			the capacity.
+	 * 			| if (getHitDamage().isLessThan(getCapacityAmount()))
+	 * 			|   getCapacity().drain(getHitDamage());
+	 * @effect	Otherwise, this robot's capacity would become less
+	 * 			than zero and thus it is terminated.
+	 * 			| else
+	 * 			|   terminate()
+	 */
+	@Override
+	public void hit() throws IllegalStateException {
+		if (isTerminated())
+			throw new IllegalStateException("Robot must not be terminated.");
+
+		if (getHitDamage().isLessThan(getCapacityAmount()))
+			getCapacity().drain(getHitDamage());
+		else
+			this.terminate();
+	}
+
+	/**
+	 * Get the amount of capacity that a robot loses
+	 * when it is hit by a laser or an explosion.
+	 */
+	@Basic
+	@Immutable
+	public EnergyAmount getHitDamage() {
+		return hitDamage;
+	}
+
+	/**
+	 * Variable registering the hit damage of a robot.
+	 */
+	private static final EnergyAmount hitDamage = new EnergyAmount(4000.0, Unit.WATTSECOND);
+
+	/*
+	 * Program
+	 */
+
+	/**
+	 * Get the program of this robot.
+	 */
+	@Basic
+	public Program getProgram() {
+		return program;
+	}
+
+	/**
+	 * Set the program of this robot.
+	 *
+	 * @param program
+	 *			The new program.
+	 *
+	 * @post	The new program equals the given program.
+	 *			| new.getProgram() == program
+	 * @throws	IllegalArgumentException
+	 *			If the given program is not valid.
+	 *			| !isValidProgram(program)
+	 * @see #isValidProgram(Program)
+	 */
+	public void setProgram(Program program) throws IllegalArgumentException {
+		if (!isValidProgram(program))
+			throw new IllegalArgumentException("Invalid program for this robot.");
+		this.program = program;
+	}
+
+	/**
+	 * Check whether the given program is valid for this robot.
+	 *
+	 * @param program
+	 *			The program to validate.
+	 *
+	 * @return	If this robot is terminated, true if and only if
+	 * 			the given program is not effective.
+	 * 			| if (isTerminated())
+	 * 			|   result == (program == null)
+	 * @return	If this robot is not terminated, always true.
+	 *			| else
+	 *			|   result == true
+	 */
+	public boolean isValidProgram(Program program) {
+		if (isTerminated())
+			return program == null;
+		return true;
+	}
+
+	/**
+	 * Chech whether this robot has a program.
+	 * 
+	 * @return	True if and only if this robot's program
+	 * 			is effective.
+	 * 			| result == (getProgram() != null)
+	 */
+	public boolean hasProgram() {
+		return getProgram() != null;
+	}
+
+	/**
+	 * Variable registering the program of this robot.
+	 */
+	private Program program;
+
+	/**
+	 * Execute one step in the program of this robot.
+	 * 
+	 * @effect	The robot executes one step of its program.
+	 * 			| stepProgram(1)
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot has no program.
+	 * 			| !hasProgram()
+	 * 
+	 * @see #stepProgram(int)
+	 */
+	public void stepProgram() throws IllegalStateException {
+		stepProgram(1);
+	}
+
+	/**
+	 * Execute the given amount of steps in the program
+	 * of this robot.
+	 * 
+	 * @param steps
+	 * 			The amount of steps to execute.
+	 * 
+	 * @effect	The main command of the robot's program
+	 * 			is stepped and executed at most
+	 * 			<code>step</code> times. The execution may
+	 * 			stop earlier when the main command
+	 * 			indicates that it cannot step any further.
+	 * 			| let
+	 * 			|   command = getProgram().getCommand()
+	 * 			|
+	 * 			| for i in 1..steps :
+	 * 			|   if (command.step(this))
+	 * 			|      command.execute(this)
+	 * 			|   else
+	 * 			|      break
+	 * @note	We couldn't find a decent way to formally
+	 * 			document the abortion of the loop, so
+	 * 			we opted for a <code>break</code> keyword.
+	 * 
+	 * @throws	IllegalArgumentException
+	 * 			If the given amount of steps is negative.
+	 * 			| steps < 0
+	 * @throws	IllegalStateException
+	 * 			If this robot has no program.
+	 * 			| !hasProgram()
+	 */
+	public void stepProgram(int steps) throws IllegalArgumentException, IllegalStateException {
+		if (steps < 0)
+			throw new IllegalArgumentException("Amount of steps must be non-negative.");
+		if (!hasProgram())
+			throw new IllegalStateException("Robot has no program to step.");
+
+		Command command = getProgram().getCommand();
+		while ((steps-- > 0) && command.step(this)) {
+			command.execute(this);
+		}
+	}
 
 	/**
 	 * @effect	All the possessions of this robot are terminated.
@@ -1155,6 +1773,8 @@ public class Robot extends Piece implements EnergyCarrier {
 	 * 			|   possession.terminate()
 	 * @post	This robot no longer has any possessions.
 	 * 			| new.getNbPossessions() == 0
+	 * @post	This robot no longer has a program.
+	 * 			| !new.hasProgram()
 	 */
 	@Override
 	public void terminate() {
@@ -1164,14 +1784,83 @@ public class Robot extends Piece implements EnergyCarrier {
 		}
 		possessions.clear();
 
+		// Remove program
+		setProgram(null);
+
 		super.terminate();
 	}
 
 	@Override
 	public String toString() {
 		String result = super.toString();
-		result += String.format(" with %.2f Ws energy", getEnergy());
+		result += String.format(" with %s / %s energy", getEnergy(), getCapacity());
 		result += String.format(" and %d possessions", getNbPossessions());
 		return result;
 	}
+
+	private class StoredEnergy extends EnergyProperty {
+
+		/**
+		 * @return	The result is the current amount of capacity
+		 * 			of this robot.
+		 * 			| result.equals(Robot.this.getCapacityAmount())
+		 */
+		@Override
+		public EnergyAmount getMaximumAmount() {
+			return Robot.this.getCapacityAmount();
+		}
+
+	}
+
+	private class StoredCapacity extends EnergyProperty {
+
+		public StoredCapacity(EnergyAmount maximumCapacity) {
+			super(maximumCapacity);
+		}
+
+		/**
+		 * @return	The result is the maximum amount of capacity
+		 * 			of this robot.
+		 * 			| result.equals(Robot.this.getMaximumCapacity())
+		 */
+		@Override
+		public EnergyAmount getMaximumAmount() {
+			return Robot.this.getMaximumCapacity();
+		}
+
+		/**
+		 * @effect	The new amount of capacity is set
+		 * 			for the maximum amount of capacity.
+		 * 			| setAmount(amount, getMaximumAmount())
+		 * 
+		 * @effect	The new amount of energy of the robot
+		 * 			is set to the minimum of the new capacity
+		 * 			and the current amount of energy of the robot.
+		 * 			This ensures that the robot never has
+		 * 			more energy than capacity.
+		 * 			| let
+		 * 			|   storedEnergy = Robot.this.getEnergy()
+		 * 			|
+		 * 			| storedEnergy.setAmount(EnergyAmount.min(
+		 * 			|   new.getAmount(),
+		 * 			|   storedEnergy.getAmount()
+		 * 			| ));
+		 */
+		@Override
+		public void setAmount(EnergyAmount amount) {
+			assert isValidAmount(amount);
+
+			// If needed, decrease the stored energy
+			// to ensure that it never exceeds the capacity
+			EnergyProperty storedEnergy = Robot.this.getEnergy();
+			if (storedEnergy != null) {
+				storedEnergy.setAmount(EnergyAmount.min(amount, storedEnergy.getAmount()));
+			}
+
+			// Afterwards, decrease the capacity
+			super.setAmount(amount);
+		}
+
+	}
+
 }

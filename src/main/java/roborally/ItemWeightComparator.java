@@ -7,11 +7,16 @@ import java.util.Comparator;
  * 
  * @note	This comparator imposes orderings that are inconsistent with equals.
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
-public class ItemWeightComparator implements Comparator<Item> {
+public class ItemWeightComparator<I extends Item> implements Comparator<I> {
 
 	/**
 	 * Compares two items for order.
@@ -33,13 +38,14 @@ public class ItemWeightComparator implements Comparator<Item> {
 	 * 			the weight of the second item, a positive value
 	 * 			is returned.
 	 * 			| else
-	 * 			|   result < 0
+	 * 			|   result > 0
 	 */
 	@Override
-	public int compare(Item item1, Item item2) {
-		Integer weight1 = Integer.valueOf(item1.getWeight());
-		Integer weight2 = Integer.valueOf(item2.getWeight());
-		return weight1.compareTo(weight2);
+	public int compare(I item1, I item2) {
+		// This subtraction won't overflow
+		// because both weights are non-negative
+		// as specified by Item.isValidWeight(int)
+		return item1.getWeight() - item2.getWeight();
 	}
 
 }

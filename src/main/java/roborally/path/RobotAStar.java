@@ -2,17 +2,22 @@ package roborally.path;
 
 import be.kuleuven.cs.som.annotate.Basic;
 import be.kuleuven.cs.som.annotate.Immutable;
-import roborally.Robot;
+import be.kuleuven.cs.som.annotate.Model;
+import be.kuleuven.cs.som.annotate.Raw;
+import roborally.*;
 import roborally.util.FibonacciQueue;
 
 /**
  * An A* algorithm for a robot moving on a board.
  * 
+ * @param <N>
+ * 			The node type.
+ * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
-public abstract class RobotAStar<N extends RobotNode> extends AStar<N> {
+public abstract class RobotAStar<N extends RobotNode> extends AStar<N, EnergyAmount> {
 
 	/**
 	 * Create a new robot A* algorithm.
@@ -29,7 +34,9 @@ public abstract class RobotAStar<N extends RobotNode> extends AStar<N> {
 	 * 		    If the given robot is not effective or is terminated.
 	 * 			| robot == null || robot.isTerminated()
 	 */
-	public RobotAStar(Robot robot) throws IllegalArgumentException {
+	@Raw
+	@Model
+	protected RobotAStar(Robot robot) throws IllegalArgumentException {
 		if (robot == null || robot.isTerminated())
 			throw new IllegalArgumentException("Robot must be effective and not terminated.");
 
@@ -42,10 +49,16 @@ public abstract class RobotAStar<N extends RobotNode> extends AStar<N> {
 	 */
 	@Basic
 	@Immutable
-	public final Robot getRobot() {
+	public Robot getRobot() {
 		return robot;
 	}
 
+	/**
+	 * Variable registering the robot this algorithm works on.
+	 * 
+	 * @invar	The robot is effective.
+	 * 			| robot != null
+	 */
 	protected final Robot robot;
 
 }

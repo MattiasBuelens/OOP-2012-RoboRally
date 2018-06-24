@@ -8,10 +8,7 @@ import static org.junit.Assert.fail;
 import org.junit.Before;
 import org.junit.Test;
 
-import roborally.Board;
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Vector;
+import roborally.*;
 
 public class RobotMoveTest {
 
@@ -35,7 +32,7 @@ public class RobotMoveTest {
 
 		assertEquals(new Vector(4, 7), robotEnergy500.getPosition());
 		assertEquals(Orientation.RIGHT, robotEnergy500.getOrientation());
-		assertEquals(0, robotEnergy500.getEnergy(), 0.1);
+		assertEquals(EnergyAmount.ZERO, robotEnergy500.getEnergyAmount());
 	}
 
 	@Test(expected = IllegalArgumentException.class)

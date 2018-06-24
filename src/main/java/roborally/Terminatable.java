@@ -4,11 +4,16 @@ import be.kuleuven.cs.som.annotate.Basic;
 import be.kuleuven.cs.som.annotate.Raw;
 
 /**
- * Represents a terminatable object.
+ * A terminatable object.
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public abstract class Terminatable {
 
@@ -31,5 +36,8 @@ public abstract class Terminatable {
 		this.isTerminated = true;
 	}
 
+	/**
+	 * Variable registering whether this object is terminated.
+	 */
 	private boolean isTerminated = false;
 }

@@ -3,15 +3,20 @@ package roborally;
 import be.kuleuven.cs.som.annotate.*;
 
 /**
- * Represents the orientation of a robot.
+ * An enumeration of robot orientations.
  * 
  * @note	This class uses a two axis coordinate system:
  * 			<dl><dt>X-axis</dt><dd>Horizontal axis, positive values at the right.</dd>
  * 			<dt>Y-axis</dt><dd>Vertical axis, positive values downward.</dd></dl>
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public enum Orientation {
 	/**
@@ -58,7 +63,11 @@ public enum Orientation {
 		return value;
 	}
 
-	private int value;
+	/**
+	 * Variable registering the integer representation
+	 * of this orientation.
+	 */
+	private final int value;
 
 	/**
 	 * Get a vector representation of this orientation.
@@ -84,16 +93,23 @@ public enum Orientation {
 		return vector;
 	}
 
-	private Vector vector;
+	/**
+	 * Variable registering the vector representation
+	 * of this orientation.
+	 */
+	private final Vector vector;
 
 	/**
 	 * Get an orientation by its integer representation.
+	 * 
 	 * @param value
 	 * 			The integer representation.
+	 * 
 	 * @return	The orientation whose value representation equals the given value,
 	 * 			or null if no such orientation exists.
-	 * 			| if (for some elem in getValues() : elem.getValue() == value)
-	 * 			|	result == elem
+	 * 			| if (for some orientation in values() :
+	 * 			|      orientation.getValue() == value)
+	 * 			|	result == orientation
 	 * 			| else
 	 * 			|	result == null
 	 */
@@ -187,6 +203,32 @@ public enum Orientation {
 	}
 
 	/**
+	 * Perform a rotation on this orientation.
+	 * 
+	 * @param rotation
+	 * 			The rotation direction to turn in.
+	 * 
+	 * @return	If the given rotation is clockwise,
+	 * 			this orientation is turned clockwise.
+	 * 			| if (rotation == Rotation.CLOCKWISE)
+	 * 			|   result == turnClockwise()
+	 * @return	If the given rotation is counter-clockwise,
+	 * 			this orientation is turned counter-clockwise.
+	 * 			| else if (rotation == Rotation.COUNTERCLOCKWISE)
+	 * 			|   result == turnCounterClockwise()
+	 * @return	Otherwise, this orientation is returned.
+	 * 			| else
+	 * 			|   result == this
+	 */
+	public Orientation turn(Rotation rotation) {
+		if (rotation == Rotation.CLOCKWISE)
+			return turnClockwise();
+		else if (rotation == Rotation.COUNTERCLOCKWISE)
+			return turnCounterClockwise();
+		return this;
+	}
+
+	/**
 	 * Get the minimum amount of turns needed to end up in the given orientation.
 	 * 
 	 * @param orientation
@@ -202,7 +244,7 @@ public enum Orientation {
 	 * 			|
 	 * 			| result == min({cwTurns, ccwTurns})
 	 * @note	The notation <code>this.x()^n</code> means that <code>x()</code>
-	 * 			is applied <code>n</code> to this orientation.
+	 * 			is applied <code>n</code> times to this orientation.
 	 * 			| let
 	 * 			|   orientation = this
 	 * 			| for each i in 1..n :

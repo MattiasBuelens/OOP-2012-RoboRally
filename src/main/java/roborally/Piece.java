@@ -5,9 +5,9 @@ import be.kuleuven.cs.som.annotate.Model;
 import be.kuleuven.cs.som.annotate.Raw;
 
 /**
- * Represents a piece in a game of RoboRally.
+ * A piece in a game of RoboRally.
  * 
- * A piece can be placed on a board at a certain position.
+ * <p>A piece can be placed on a board at a certain position.</p>
  * 
  * @invar	The piece's position is valid.
  * 			| isValidPosition(getPosition())
@@ -15,9 +15,14 @@ import be.kuleuven.cs.som.annotate.Raw;
  * @invar	The piece's board is valid.
  * 			| canHaveAsBoard(getBoard())
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public abstract class Piece extends Terminatable {
 
@@ -47,8 +52,8 @@ public abstract class Piece extends Terminatable {
 	 *			| !isValidPosition(position)
 	 * @see #isValidPosition(Vector)
 	 */
-	@Raw
-	private void setPosition(Vector position) {
+	@Raw @Model
+	void setPosition(Vector position) {
 		this.position = position;
 	}
 
@@ -112,13 +117,13 @@ public abstract class Piece extends Terminatable {
 	 * Check whether this piece can have the given board as its board.
 	 * 
 	 * @param board
-	 * 			The board to check.
+	 * 			The board to validate.
 	 * 
 	 * @return	If this piece is terminated, true if and only if
-	 * 			the given board is null.
+	 * 			the given board is not effective.
 	 * 			| if (isTerminated())
 	 * 			|   result == (board == null)
-	 * @return	True if the given board is null.
+	 * @return	True if the given board is not effective.
 	 * 			| else if (board == null)
 	 * 			|   result == true
 	 * @return	Otherwise, true if and only if the given board is not terminated.
@@ -206,7 +211,8 @@ public abstract class Piece extends Terminatable {
 	/**
 	 * Remove this piece from its board.
 	 * 
-	 * @effect	The position of this piece is set to null.
+	 * @effect	The position of this piece is set to
+	 * 			the null reference.
 	 * 			| setPosition(null)
 	 * @effect	This piece is removed from this piece's board.
 	 * 			| board.removeAsPiece(this)
@@ -352,6 +358,19 @@ public abstract class Piece extends Terminatable {
 		}
 		return true;
 	}
+	
+	/*
+	 * Shooting
+	 */
+
+	/**
+	 * React when being damaged by a laser or an explosion.
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this piece is terminated.
+	 * 			| isTerminated()
+	 */
+	public abstract void hit() throws IllegalStateException;
 
 	/**
 	 * @post	The piece is no longer placed on any board.

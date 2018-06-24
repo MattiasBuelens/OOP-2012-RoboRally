@@ -4,10 +4,7 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 
-import roborally.Board;
-import roborally.Orientation;
-import roborally.Robot;
-import roborally.Vector;
+import roborally.*;
 
 public class RobotOrientationTest {
 
@@ -33,7 +30,7 @@ public class RobotOrientationTest {
 	}
 
 	@Test
-	public void setOrientation_Null() {
+	public void setOrientation_NotEffective() {
 		robot.setOrientation(null);
 		assertEquals(Orientation.UP, robot.getOrientation());
 	}

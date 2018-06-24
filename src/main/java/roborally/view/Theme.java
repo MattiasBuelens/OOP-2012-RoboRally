@@ -59,7 +59,23 @@ public class Theme {
 	public Image getWallImage() {
 		return getImage("wall");
 	}
-	
+
+	public Image getRepairKitImage(int index) {
+		return getImage("repairkit", index);
+	}
+
+	public Image getRepairKitImage() {
+		return getImage("repairkit");
+	}
+
+	public Image getSurpriseBoxImage(int index) {
+		return getImage("surprisebox", index);
+	}
+
+	public Image getSurpriseBoxImage() {
+		return getImage("surprisebox");
+	}
+
 	public Image getBackgroundImage(int index) {
 		return getImage("bg", index);
 	}
@@ -159,8 +175,7 @@ public class Theme {
 	}
 
 	private static class ThemeFileFilter implements FileFilter {
-		private static final Pattern pattern = Pattern.compile("^robot.*$",
-				Pattern.CASE_INSENSITIVE);
+		private static final Pattern pattern = Pattern.compile("^robot.*$", Pattern.CASE_INSENSITIVE);
 
 		@Override
 		public boolean accept(File file) {
@@ -179,8 +194,7 @@ public class Theme {
 
 		// Make pattern to match resources in the given resource root
 		String jarPath = fileParts[0], resourceRoot = fileParts[1];
-		Pattern pattern = Pattern.compile("^" + Pattern.quote(resourceRoot) + "/.*$",
-				Pattern.CASE_INSENSITIVE);
+		Pattern pattern = Pattern.compile("^" + Pattern.quote(resourceRoot) + "/.*$", Pattern.CASE_INSENSITIVE);
 
 		// Open the JAR as a ZIP file
 		ZipFile zip;

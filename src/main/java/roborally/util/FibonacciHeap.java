@@ -49,7 +49,12 @@ import java.util.Stack;
  * @author  Nathan Fiedler
  * @author	Mattias Buelens
  * @author	Thomas Goossens
- * @version	2.0
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
 public class FibonacciHeap<E> {
 	/** Points to the minimum node in the heap. */

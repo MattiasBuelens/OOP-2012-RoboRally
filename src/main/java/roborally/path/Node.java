@@ -4,17 +4,22 @@ import java.util.Collection;
 
 import be.kuleuven.cs.som.annotate.Basic;
 import be.kuleuven.cs.som.annotate.Immutable;
+import be.kuleuven.cs.som.annotate.Model;
+import be.kuleuven.cs.som.annotate.Raw;
 import roborally.Vector;
 import roborally.util.Sortable;
 
 /**
  * A node in a path.
  * 
+ * @param <V>
+ * 			The cost value type.
+ * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
-public abstract class Node implements Comparable<Node>, Sortable {
+public abstract class Node<V extends Comparable<? super V>> implements Comparable<Node<V>>, Sortable {
 
 	/**
 	 * Create a node.
@@ -29,6 +34,8 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * 			If the given position is not effective.
 	 * 			| position == null
 	 */
+	@Raw
+	@Model
 	protected Node(Vector position) throws IllegalArgumentException {
 		if (position == null)
 			throw new IllegalArgumentException("Position must be effective.");
@@ -41,30 +48,29 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 */
 	@Basic
 	@Immutable
-	public final Vector getPosition() {
+	public Vector getPosition() {
 		return position;
 	}
 
+	/**
+	 * Variable registering the position of this node.
+	 * 
+	 * @invar	The position is effective.
+	 * 			| position != null
+	 */
 	private final Vector position;
 
 	/**
 	 * Get the total estimated cost from the start node
 	 * to the target along this node.
-	 * 
-	 * @return	The total estimated cost is sum of the
-	 * 			actual cost to this node and the estimated
-	 * 			remaining cost to the target.
-	 * 			| result == getG() + getH()
 	 */
-	public double getF() {
-		return getG() + getH();
-	}
+	public abstract V getF();
 
 	/**
 	 * Get the actual cost from the start node to this node.
 	 */
 	@Basic
-	public double getG() {
+	public V getG() {
 		return g;
 	}
 
@@ -75,20 +81,30 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * 			The new actual cost.
 	 * 
 	 * @post	The new actual cost equals the given cost.
-	 * 			| new.getG() == g
+	 * 			| new.getG().equals(g)
 	 */
-	protected void setG(double g) {
+	protected void setG(V g) {
 		this.g = g;
 	}
+	
+	/**
+	 * Reset the actual cost from the start node to this node
+	 * to zero.
+	 */
+	public abstract void resetG();
 
-	private double g;
+	/**
+	 * Variable registering the actual cost from the start node
+	 * to this node.
+	 */
+	private V g;
 
 	/**
 	 * Get the estimated remaining cost from this node
 	 * to the target.
 	 */
 	@Basic
-	public double getH() {
+	public V getH() {
 		return h;
 	}
 
@@ -101,13 +117,17 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * 
 	 * @post	The new estimated remaining cost equals
 	 * 			the given cost.
-	 * 			| new.getH() == h
+	 * 			| new.getH().equals(h)
 	 */
-	protected void setH(double h) {
+	protected void setH(V h) {
 		this.h = h;
 	}
 
-	private double h;
+	/**
+	 * Variable registering the estimated remaining cost
+	 * from this node to the target.
+	 */
+	private V h;
 
 	/**
 	 * Calculate the estimated remaining cost from
@@ -121,13 +141,13 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * 			If the target is not effective.
 	 * 			| target == null
 	 */
-	public abstract void calculateH(Node target) throws IllegalArgumentException;
+	public abstract void calculateH(Node<V> target) throws IllegalArgumentException;
 
 	/**
 	 * Get the previous node.
 	 */
 	@Basic
-	public Node getPrevious() {
+	public Node<V> getPrevious() {
 		return previous;
 	}
 
@@ -140,11 +160,14 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * @post	The new previous node equals the given node.
 	 * 			| new.getPrevious() == previous
 	 */
-	public void setPrevious(Node node) {
+	public void setPrevious(Node<V> node) {
 		this.previous = node;
 	}
 
-	private Node previous;
+	/**
+	 * Variable registering the previous node of this node.
+	 */
+	private Node<V> previous;
 
 	/**
 	 * Check if the given node appears somewhere
@@ -169,10 +192,10 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * 			| else
 	 * 			|   result == getPrevious().hasAsPrevious(node)
 	 */
-	public boolean hasAsPrevious(Node node) {
+	public boolean hasAsPrevious(Node<V> node) {
 		if (node == null)
 			return false;
-		Node previous = getPrevious();
+		Node<V> previous = getPrevious();
 		if (previous == null)
 			return false;
 		if (previous.equals(node))
@@ -189,39 +212,28 @@ public abstract class Node implements Comparable<Node>, Sortable {
 	 * 			of this node contains the given node.
 	 * 			| result == getNeighbours().contains(node)
 	 */
-	public boolean isNeighbour(Node node) {
+	public boolean isNeighbour(Node<V> node) {
 		return getNeighbours().contains(node);
 	}
 
 	/**
 	 * Get the neighbour nodes of this node.
 	 */
-	public abstract Collection<Node> getNeighbours();
+	public abstract Collection<Node<V>> getNeighbours();
 
 	/**
 	 * @return	The total estimated cost is used
 	 * 			as sorting key.
-	 * 			| result == getF()
 	 */
 	@Override
-	public double getKey() {
-		return getF();
-	}
+	public abstract double getKey();
 
 	/**
 	 * @return	The nodes are compared on their total
 	 * 			estimated cost.
-	 * 			| let
-	 * 			|   f1 = Double.valueOf(this.getF())
-	 * 			|   f2 = Double.valueOf(node.getF())
-	 * 			| result == f1.compareTo(f2)
 	 */
 	@Override
-	public int compareTo(Node node) {
-		Double f1 = Double.valueOf(this.getF());
-		Double f2 = Double.valueOf(node.getF());
-		return f1.compareTo(f2);
-	}
+	public abstract int compareTo(Node<V> node);
 
 	/**
 	 * @return	True if the given object reference equals this object reference.
@@ -242,6 +254,7 @@ public abstract class Node implements Comparable<Node>, Sortable {
 			return true;
 		if (getClass() != obj.getClass())
 			return false;
+		@SuppressWarnings("rawtypes")
 		Node other = (Node) obj;
 		return getPosition().equals(other.getPosition());
 	}

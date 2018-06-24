@@ -2,11 +2,17 @@ package roborally;
 
 import java.util.*;
 
+import roborally.util.AbstractIterator;
+import roborally.util.FilteredIterable;
+import roborally.util.FilteredIterator;
+import roborally.util.Predicate;
+
 import be.kuleuven.cs.som.annotate.Basic;
+import be.kuleuven.cs.som.annotate.Immutable;
 import be.kuleuven.cs.som.annotate.Raw;
 
 /**
- * Represents a board in a game of RoboRally.
+ * A board in a game of RoboRally.
  * 
  * <p>A board has a width and height and can contain pieces.</p>
  * 
@@ -15,11 +21,16 @@ import be.kuleuven.cs.som.annotate.Raw;
  * @invar 	The board has proper pieces.
  * 			| hasProperPieces()
  * 
- * @author Mattias Buelens
- * @author Thomas Goossens
- * @version 2.0
+ * @author	Mattias Buelens
+ * @author	Thomas Goossens
+ * @version	3.0
+ * 
+ * @note	This class is part of the 2012 project for
+ * 			the course Object Oriented Programming in
+ * 			the second phase of the Bachelor of Engineering
+ * 			at KU Leuven, Belgium.
  */
-public class Board extends Terminatable {
+public class Board extends Terminatable implements FilteredIterable<Piece> {
 
 	/**
 	 * Create a new board.
@@ -56,6 +67,9 @@ public class Board extends Terminatable {
 		return width;
 	}
 
+	/**
+	 * Variable registering the width of this board.
+	 */
 	private final long width;
 
 	/**
@@ -73,13 +87,17 @@ public class Board extends Terminatable {
 	}
 
 	/**
-	 * Get the maximum width of the board.
+	 * Get the maximum width of a board.
 	 */
 	@Basic
+	@Immutable
 	public static long getMaximumWidth() {
 		return maximumWidth;
 	}
 
+	/**
+	 * Variable registering the maximum width of a board.
+	 */
 	private static final long maximumWidth = Long.MAX_VALUE;
 
 	/**
@@ -90,6 +108,9 @@ public class Board extends Terminatable {
 		return height;
 	}
 
+	/**
+	 * Variable registering the height of this board.
+	 */
 	private final long height;
 
 	/**
@@ -107,20 +128,43 @@ public class Board extends Terminatable {
 	}
 
 	/**
-	 * Get the maximum height of the board.
+	 * Get the maximum height of a board.
 	 */
 	@Basic
+	@Immutable
 	public static long getMaximumHeight() {
 		return maximumHeight;
 	}
 
+	/**
+	 * Variable registering the maximum height of a board.
+	 */
 	private static final long maximumHeight = Long.MAX_VALUE;
 
 	/*
 	 * Pieces
 	 */
 
-	private Map<Vector, Set<Piece>> pieces = new HashMap<Vector, Set<Piece>>();
+	/**
+	 * Map mapping positions to sets of pieces placed on this board.
+	 * 
+	 * @invar	The map of piece sets is effective.
+	 * 			| pieces != null
+	 * @invar	Each set of pieces in the map is effective
+	 * 			and not empty.
+	 * 			| for each pieceSet in pieces.values() :
+	 * 			|   pieceSet != null && !pieceSet.isEmpty()
+	 * @invar	This board can have each piece in the map
+	 * 			and can have each piece at its position.
+	 * 			| for each pieceSet in pieces.values() :
+	 * 			|   for each piece in pieceSet :
+	 * 			|      canHaveAsPiece(piece)
+	 * 			|       && canHavePieceAt(piece, piece.getPosition())
+	 * @note	It is not guaranteed that each piece in the map
+	 * 			has this board as its board. It is the responsibility
+	 * 			of Piece to maintain this relationship.
+	 */
+	private final Map<Vector, Set<Piece>> pieces = new HashMap<Vector, Set<Piece>>();
 
 	/**
 	 * Check whether this board has proper pieces.
@@ -131,7 +175,7 @@ public class Board extends Terminatable {
 	 * 			| for each piece in getPieces() :
 	 * 			|   canHaveAsPiece(piece)
 	 * 			|    && piece.getBoard() == this
-	 * 			|    && piece.canHavePieceAt(piece, piece.getPosition())
+	 * 			|    && canHavePieceAt(piece, piece.getPosition())
 	 */
 	public boolean hasProperPieces() {
 		for (Set<Piece> piecesAtPosition : pieces.values()) {
@@ -213,14 +257,41 @@ public class Board extends Terminatable {
 	public Set<Piece> getPiecesAt(Vector position) {
 		// Pieces at same position
 		Set<Piece> piecesAtPosition = pieces.get(position);
-		
+
 		// If set is not effective, return empty set
 		if (piecesAtPosition == null) {
 			return Collections.emptySet();
 		}
-		
+
 		// Return unmodifiable view of set
 		return Collections.unmodifiableSet(piecesAtPosition);
+	}
+
+	/**
+	 * Get a set of all the pieces on this board at the given position
+	 * which are instances of a given type.
+	 * 
+	 * @param position
+	 * 			The position to find pieces at.
+	 * @param pieceType
+	 * 			The type of pieces to return.
+	 * 
+	 * @return	The resulting set contains all pieces which are
+	 * 			instances of the given type, have this board as
+	 * 			their board and have the given position as
+	 * 			their position.
+	 * 			| result == {piece:Piece | pieceType.isInstance(piece)
+	 * 			|                           && piece.getBoard() == this
+	 *          |                           && piece.getPosition().equals(position)}
+	 */
+	public <T extends Piece> Set<T> getPiecesAt(Vector position, Class<T> pieceType) {
+		Set<T> typedPieces = new HashSet<T>();
+		for (Piece piece : getPiecesAt(position)) {
+			if (pieceType.isInstance(piece)) {
+				typedPieces.add(pieceType.cast(piece));
+			}
+		}
+		return typedPieces;
 	}
 
 	/**
@@ -389,8 +460,10 @@ public class Board extends Terminatable {
 
 		// Remove piece
 		Set<Piece> piecesAtPosition = pieces.get(piece.getPosition());
-		if (piecesAtPosition != null) {
-			piecesAtPosition.remove(piece);
+		piecesAtPosition.remove(piece);
+		// Remove set from map if empty
+		if (piecesAtPosition.isEmpty()) {
+			pieces.remove(piece.getPosition());
 		}
 	}
 
@@ -427,6 +500,16 @@ public class Board extends Terminatable {
 			return false;
 
 		return hasAsPiece(piece);
+	}
+
+	@Override
+	public Iterator<Piece> iterator() {
+		return new Itr();
+	}
+
+	@Override
+	public Iterator<Piece> iterator(Predicate<? super Piece> filter) {
+		return new FilteredIterator<Piece>(iterator(), filter);
 	}
 
 	/*
@@ -553,4 +636,94 @@ public class Board extends Terminatable {
 
 		super.terminate();
 	}
+
+	/**
+	 * Get a random position on this board.
+	 * 
+	 * @return	The resulting position is a valid position
+	 * 			on this board.
+	 * 			| isValidPosition(result)
+	 */
+	public Vector getRandomPosition() {
+		roborally.util.Random random = new roborally.util.Random();
+		Long x = random.nextLong(getWidth());
+		Long y = random.nextLong(getHeight());
+		return new Vector(x, y);
+	}
+
+	/**
+	 * Get a random position for the given piece
+	 * on this board.
+	 * 
+	 * @param piece
+	 * 			The piece to find a position for.
+	 * 
+	 * @return	This board can have the given piece
+	 * 			at the resulting position.
+	 * 			| canHavePieceAt(piece, result);
+	 * 
+	 * @throws	IllegalArgumentException
+	 * 			If the given piece is not effective.
+	 * 			| piece == null
+	 * @throws	IllegalArgumentException
+	 * 			If the given piece is terminated.
+	 * 			| piece.isTerminated()
+	 * 
+	 * @note	Caution must be taken when calling
+	 * 			this method. If the board has pieces on
+	 * 			every position and the given piece cannot
+	 * 			share its position with any of the pieces
+	 * 			on the board, this method will end up in
+	 * 			an infinite loop.
+	 */
+	public Vector getRandomPosition(Piece piece) {
+		if (piece == null)
+			throw new IllegalArgumentException("Piece must be effective.");
+		if (piece.isTerminated())
+			throw new IllegalArgumentException("Piece must not be terminated.");
+
+		Vector pos;
+		do {
+			pos = getRandomPosition();
+		} while (!canHavePieceAt(piece, pos));
+
+		return pos;
+	}
+
+	private class Itr extends AbstractIterator<Piece> {
+
+		private Itr() {
+			setItr = pieces.values().iterator();
+		}
+
+		/**
+		 * Variable representing the piece sets iterator.
+		 */
+		private final Iterator<Set<Piece>> setItr;
+
+		/**
+		 * Variable representing the current piece iterator.
+		 */
+		private Iterator<Piece> pieceItr;
+
+		@Override
+		protected Piece computeNext() {
+			// If there is no piece iterator yet
+			// or the piece iterator is at its end
+			if (pieceItr == null || !pieceItr.hasNext()) {
+				// If the set iterator is not at its end
+				if (setItr.hasNext()) {
+					// Get the next piece iterator
+					pieceItr = setItr.next().iterator();
+				} else {
+					// No more pieces to return
+					return endOfData();
+				}
+			}
+			// Get the next piece to return
+			return pieceItr.next();
+		}
+
+	}
+
 }

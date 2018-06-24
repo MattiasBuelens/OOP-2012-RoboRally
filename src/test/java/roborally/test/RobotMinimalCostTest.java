@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import roborally.*;
+import roborally.EnergyAmount.Unit;
 
 public class RobotMinimalCostTest {
 
@@ -40,7 +41,7 @@ public class RobotMinimalCostTest {
 	@Test
 	public void getMinimalCostToReach_NormalCase() throws InvalidPositionException, UnreachablePositionException {
 		double expectedCost = getExpectedCost(10, 7);
-		double cost = robot.getMinimalCostToReach(new Vector(6, 2));
+		double cost = robot.getMinimalCostToReach(new Vector(6, 2)).getAmount(Unit.WATTSECOND);
 		assertTrue(robot.isReachable(new Vector(6, 2)));
 		assertTrue(robot.canReach(new Vector(6, 2)));
 		assertEquals(expectedCost, cost, 0.1);
@@ -71,7 +72,7 @@ public class RobotMinimalCostTest {
 
 	@Test
 	public void getMinimalCostToReach_CurrentPosition() throws InvalidPositionException, UnreachablePositionException {
-		double cost = robot.getMinimalCostToReach(robot.getPosition());
+		double cost = robot.getMinimalCostToReach(robot.getPosition()).getAmount(Unit.WATTSECOND);
 		assertEquals(0, cost, 0.1);
 	}
 
@@ -80,12 +81,13 @@ public class RobotMinimalCostTest {
 		new Robot(Orientation.UP, 500).placeOnBoard(board, new Vector(3, 2));
 
 		double expectedCost = getExpectedCost(12, 7);
-		double cost = robot.getMinimalCostToReach(new Vector(6, 2));
+		double cost = robot.getMinimalCostToReach(new Vector(6, 2)).getAmount(Unit.WATTSECOND);
 		assertEquals(expectedCost, cost, 0.1);
 	}
 
 	private double getExpectedCost(int expectedSteps, int expectedTurns) {
-		return robot.getStepCost() * expectedSteps + robot.getTurnCost() * expectedTurns;
+		return robot.getStepCost().getAmount(Unit.WATTSECOND) * expectedSteps
+				+ robot.getTurnCost().getAmount(Unit.WATTSECOND) * expectedTurns;
 	}
 
 }

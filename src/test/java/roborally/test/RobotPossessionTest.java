@@ -14,8 +14,8 @@ import roborally.*;
 
 public class RobotPossessionTest {
 
-	Robot normalBot, terminatedBot, carrierBot;
-	Board board;
+	Robot normalBot, terminatedBot, carrierBot, robot1, robot2;
+	Board board, otherBoard;
 	Battery batteryCarried;
 
 	@Before
@@ -33,6 +33,13 @@ public class RobotPossessionTest {
 		batteryCarried.placeOnBoard(board, Vector.ZERO);
 
 		carrierBot.pickUp(batteryCarried);
+
+		robot1 = new Robot(Orientation.RIGHT, EnergyAmount.ZERO);
+		robot2 = new Robot(Orientation.RIGHT, 2000);
+
+		otherBoard = new Board(10, 10);
+		robot1.placeOnBoard(otherBoard, Vector.ZERO);
+		robot2.placeOnBoard(otherBoard, new Vector(1, 0));
 	}
 
 	/*
@@ -40,7 +47,7 @@ public class RobotPossessionTest {
 	 */
 
 	@Test
-	public void pickUp_NormalCase() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void pickUp_NormalCase() throws Exception {
 		Battery battery = new Battery(20);
 		battery.placeOnBoard(board, normalBot.getPosition());
 
@@ -65,8 +72,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void pickUp_DifferentBoard() throws IllegalArgumentException, IllegalStateException,
-			InvalidPositionException, InvalidSizeException {
+	public void pickUp_DifferentBoard() throws Exception {
 		Battery battery = new Battery(20);
 		Board board2 = new Board(10, 10);
 		battery.placeOnBoard(board2, normalBot.getPosition());
@@ -76,8 +82,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void pickUp_DifferentPosition() throws IllegalArgumentException, IllegalStateException,
-			InvalidPositionException {
+	public void pickUp_DifferentPosition() throws Exception {
 		Battery battery = new Battery(20);
 		battery.placeOnBoard(board, new Vector(1, 1));
 
@@ -92,8 +97,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void pickUp_TerminatedRobot() throws IllegalArgumentException, IllegalStateException,
-			InvalidPositionException {
+	public void pickUp_TerminatedRobot() throws Exception {
 		Battery battery = new Battery(20);
 		battery.placeOnBoard(board, Vector.ZERO);
 
@@ -103,8 +107,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void pickUp_TerminatedItem() throws IllegalArgumentException, IllegalStateException,
-			InvalidPositionException {
+	public void pickUp_TerminatedItem() throws Exception {
 		Battery battery = new Battery(20);
 		battery.placeOnBoard(board, normalBot.getPosition());
 		battery.terminate();
@@ -118,7 +121,7 @@ public class RobotPossessionTest {
 	 */
 
 	@Test
-	public void drop_NormalCase() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void drop_NormalCase() throws Exception {
 		carrierBot.drop(batteryCarried);
 
 		assertEquals(0, carrierBot.getNbPossessions());
@@ -127,7 +130,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void drop_TerminatedItem() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void drop_TerminatedItem() throws Exception {
 		batteryCarried.terminate();
 
 		carrierBot.drop(batteryCarried);
@@ -135,14 +138,14 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void drop_NotPossessed() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void drop_NotPossessed() throws Exception {
 		Battery battery = new Battery(2);
 		carrierBot.drop(battery);
 		fail();
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void drop_NotEffective() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void drop_NotEffective() throws Exception {
 		carrierBot.drop(null);
 		fail();
 	}
@@ -151,19 +154,8 @@ public class RobotPossessionTest {
 	 * Use items
 	 */
 
-	@Test
-	public void use_NormalCase() {
-		// Robot possesses item, uses battery
-		double oldEnergy = carrierBot.getEnergy();
-		double batteryEnergy = batteryCarried.getEnergy();
-		carrierBot.use(batteryCarried);
-
-		assertEquals(oldEnergy - batteryEnergy, carrierBot.getEnergy(), 0.1);
-		assertEquals(0, batteryCarried.getEnergy(), 0.1);
-	}
-
 	@Test(expected = IllegalArgumentException.class)
-	public void use_NotPossessed() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void use_NotPossessed() throws Exception {
 		// Robot possesses item, uses battery
 		Battery battery = new Battery(2);
 		battery.placeOnBoard(board, Vector.ZERO);
@@ -173,7 +165,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test
-	public void use_Terminated() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void use_Terminated() throws Exception {
 		// Robot possesses item, uses battery
 		batteryCarried.terminate();
 		carrierBot.use(batteryCarried);
@@ -184,7 +176,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void use_NotEffective() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void use_NotEffective() throws Exception {
 		carrierBot.use(null);
 		fail();
 	}
@@ -200,7 +192,7 @@ public class RobotPossessionTest {
 	 */
 
 	@Test
-	public void pickUp_MultipleItems() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void pickUp_MultipleItems() throws Exception {
 		Battery battery1 = new Battery(3);
 		Battery battery2 = new Battery(4);
 		Battery battery3 = new Battery(5);
@@ -238,7 +230,7 @@ public class RobotPossessionTest {
 	 */
 
 	@Test
-	public void getPossessionAt() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void getPossessionAt() throws Exception {
 		Battery battery1 = new Battery(4);
 		Battery battery2 = new Battery(3);
 		Battery battery3 = new Battery(2);
@@ -261,7 +253,7 @@ public class RobotPossessionTest {
 	}
 
 	@Test
-	public void getPossessions() throws IllegalArgumentException, IllegalStateException, InvalidPositionException {
+	public void getPossessions() throws Exception {
 		Battery battery1 = new Battery(4);
 		Battery battery2 = new Battery(3);
 
@@ -283,21 +275,180 @@ public class RobotPossessionTest {
 		assertTrue(batteries.contains(battery1));
 		assertTrue(batteries.contains(battery2));
 
-		Set<DummyItem> dummies = normalBot.getPossessions(DummyItem.class);
-		assertEquals(0, dummies.size());
+		Set<RepairKit> repairKits = normalBot.getPossessions(RepairKit.class);
+		assertEquals(0, repairKits.size());
+
+		Set<SurpriseBox> surpriseBoxes = normalBot.getPossessions(SurpriseBox.class);
+		assertEquals(0, surpriseBoxes.size());
 	}
 
-	private class DummyItem extends Item {
+	/*
+	 * Transfer items
+	 */
 
-		protected DummyItem(int weight) {
-			super(weight);
-		}
+	@Test
+	public void transferItems_NormalCase() throws Exception {
+		Robot robot1 = new Robot(Orientation.RIGHT, EnergyAmount.ZERO);
+		Robot robot2 = new Robot(Orientation.RIGHT, EnergyAmount.ZERO);
+		Board emptyBoard = new Board(10, 10);
 
-		@Override
-		public void use(Robot robot) {
-			throw new UnsupportedOperationException();
-		}
+		robot1.placeOnBoard(emptyBoard, Vector.ZERO);
+		robot2.placeOnBoard(emptyBoard, new Vector(1, 0));
 
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		Set<Item> possessions = robot1.getPossessions();
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+
+		robot1.transferItems(robot2);
+
+		assertTrue(robot1.getPossessions().isEmpty());
+		assertEquals(2, robot2.getNbPossessions());
+		assertTrue(robot2.getPossessions().containsAll(possessions));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void transferItems_SelfReference() throws Exception {
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+
+		robot1.transferItems(robot1);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void transferItems_Terminated() throws Exception {
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+
+		robot1.terminate();
+
+		robot1.transferItems(robot2);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void transferItems_NotPlaced() throws Exception {
+		robot1.removeFromBoard();
+
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+
+		robot1.transferItems(robot2);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void transferItems_NullReceiver() throws Exception {
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+		robot1.transferItems(null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void transferItems_ReceiverNotPlaced() throws Exception {
+		robot2 = new Robot(Orientation.RIGHT, 20);
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+		robot1.transferItems(robot2);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void transferItems_NotOnSameBoard() throws Exception {
+		robot2 = new Robot(Orientation.RIGHT, 20);
+		robot2.placeOnBoard(new Board(2, 2), Vector.ZERO);
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+		robot1.transferItems(robot2);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void transferItems_NotNextToOther() throws Exception {
+		robot2.move();
+		Battery b1 = new Battery(50);
+		SurpriseBox s1 = new SurpriseBox(60);
+
+		robot1.addAsPossession(b1);
+		robot1.addAsPossession(s1);
+		robot1.transferItems(robot2);
+	}
+
+	@Test
+	public void addAsPossession_NormalCase() {
+		Robot robot = new Robot(Orientation.RIGHT, 500);
+		Battery b = new Battery(2);
+		robot.addAsPossession(b);
+
+		assertEquals(1, robot.getNbPossessions());
+		assertTrue(robot.hasAsPossession(b));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void addAsPossession_AlreadyPossessed() {
+		Robot robot = new Robot(Orientation.RIGHT, 500);
+		Battery b = new Battery(2);
+		robot.addAsPossession(b);
+		robot.addAsPossession(b);
+		fail();
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void addAsPossession_isPlaced() throws IllegalArgumentException, IllegalStateException,
+			InvalidPositionException {
+		Robot robot = new Robot(Orientation.RIGHT, 500);
+		Battery b = new Battery(2);
+		b.placeOnBoard(board, Vector.ZERO);
+		robot.addAsPossession(b);
+		fail();
+	}
+
+	@Test
+	public void removeAsPossession_NormalCase() {
+		Robot robot = new Robot(Orientation.RIGHT, 500);
+		Battery b = new Battery(2);
+		robot.addAsPossession(b);
+		robot.removeAsPossession(b);
+
+		assertEquals(0, robot.getNbPossessions());
+		assertFalse(robot.hasAsPossession(b));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void removeAsPossession_NotInPossession() {
+		Robot robot = new Robot(Orientation.RIGHT, 500);
+		Battery b = new Battery(2);
+
+		robot.removeAsPossession(b);
+		fail();
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void removeAsPossession_CannotHave() {
+		Robot robot = new Robot(Orientation.RIGHT, 500);
+		Battery b = new Battery(2);
+		robot.addAsPossession(b);
+
+		robot.terminate();
+
+		robot.removeAsPossession(b);
+		fail();
 	}
 
 }

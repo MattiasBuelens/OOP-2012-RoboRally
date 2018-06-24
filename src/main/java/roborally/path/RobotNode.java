@@ -1,24 +1,20 @@
 package roborally.path;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
-import be.kuleuven.cs.som.annotate.Basic;
-import be.kuleuven.cs.som.annotate.Immutable;
-
-import roborally.Orientation;
-import roborally.Robot;
+import roborally.*;
 import roborally.Vector;
+import roborally.EnergyAmount.Unit;
+import be.kuleuven.cs.som.annotate.*;
 
 /**
  * A node in a path walked by a robot.
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 2.0
+ * @version 3.0
  */
-public abstract class RobotNode extends Node {
+public abstract class RobotNode extends Node<EnergyAmount> {
 
 	/**
 	 * Create a new robot node.
@@ -40,6 +36,8 @@ public abstract class RobotNode extends Node {
 	 * @throws	IllegalArgumentException
 	 * 			| robot == null || robot.isTerminated()
 	 */
+	@Raw
+	@Model
 	protected RobotNode(Robot robot, Vector position, Orientation orientation) throws IllegalArgumentException {
 		super(position);
 
@@ -69,10 +67,16 @@ public abstract class RobotNode extends Node {
 	 */
 	@Basic
 	@Immutable
-	public final Robot getRobot() {
+	public Robot getRobot() {
 		return robot;
 	}
 
+	/**
+	 * Variable registering the robot associated with this node.
+	 * 
+	 * @invar	The robot is effective.
+	 * 			| robot != null
+	 */
 	private final Robot robot;
 
 	/**
@@ -80,10 +84,36 @@ public abstract class RobotNode extends Node {
 	 */
 	@Basic
 	@Immutable
-	public final Orientation getOrientation() {
+	public Orientation getOrientation() {
 		return orientation;
 	}
 
+	/**
+	 * Get the total estimated cost from the start node
+	 * to the target along this node.
+	 * 
+	 * @return	The total estimated cost is sum of the
+	 * 			actual cost to this node and the estimated
+	 * 			remaining cost to the target.
+	 * 			| result.equals(getG().add(getH()))
+	 */
+	@Override
+	public EnergyAmount getF() {
+		return getG().add(getH());
+	}
+
+	/**
+	 * @post	The new actual cost from the start node to this node
+	 * 			is set to the zero energy amount. 
+	 * 			| new.getG().equals(EnergyAmount.ZERO)
+	 */
+	public void resetG() {
+		setG(EnergyAmount.ZERO);
+	}
+
+	/**
+	 * Variable registering the orientation of this node.
+	 */
 	private final Orientation orientation;
 
 	/**
@@ -92,10 +122,10 @@ public abstract class RobotNode extends Node {
 	 * @return	True if and only if the actual cost to this node
 	 * 			is less than or equal to the robot's current
 	 * 			amount of energy.
-	 * 			| result == (getG() <= getRobot.getEnergy())
+	 * 			| result == getG().isLessThanOrEqual(getRobot().getEnergyAmount())
 	 */
 	public boolean canReachWithEnergy() {
-		return getG() <= getRobot().getEnergy();
+		return getG().isLessThanOrEqual(getRobot().getEnergyAmount());
 	}
 
 	/**
@@ -124,7 +154,7 @@ public abstract class RobotNode extends Node {
 	 * 			|  && result.getPrevious() == previous
 	 * 			|  && result.getClass() == this.getClass()
 	 */
-	protected RobotNode create(Node previous, Vector position, Orientation orientation) {
+	protected RobotNode create(Node<EnergyAmount> previous, Vector position, Orientation orientation) {
 		// Create the node
 		RobotNode node = create(position, orientation);
 		// Set the previous node
@@ -161,8 +191,8 @@ public abstract class RobotNode extends Node {
 	 * 			|    && neighbour.isValid()
 	 */
 	@Override
-	public Collection<Node> getNeighbours() {
-		List<Node> neighbours = new ArrayList<Node>(Orientation.values().length);
+	public Collection<Node<EnergyAmount>> getNeighbours() {
+		List<Node<EnergyAmount>> neighbours = new ArrayList<Node<EnergyAmount>>(Orientation.values().length);
 		for (Orientation orientation : Orientation.values()) {
 			// Get adjacent position in this orientation
 			Vector position = getPosition().add(orientation.getVector());
@@ -182,18 +212,38 @@ public abstract class RobotNode extends Node {
 	 * of the actual cost of the previous node and the cost
 	 * to move from the previous node to this node.</p>
 	 */
-	private double calculateG() {
+	private EnergyAmount calculateG() {
 		RobotNode previous = getPrevious();
 		assert (previous != null);
 		// Start from actual cost of previous node
-		double g = previous.getG();
+		EnergyAmount g = previous.getG();
 		// Add one step cost
-		g += getRobot().getStepCost();
+		g = g.add(getRobot().getStepCost());
 		// Get the amount of turns
 		int amountOfTurns = getOrientation().getDifference(previous.getOrientation());
 		// Add turn costs
-		g += amountOfTurns * getRobot().getTurnCost();
+		g = g.add(getRobot().getTurnCost().multiply(amountOfTurns));
 		return g;
+	}
+
+	/**
+	 * @return	The total estimated cost in Watt-seconds
+	 * 			is used as sorting key.
+	 * 			| result == getF().getAmount(Unit.WATTSECOND)
+	 */
+	@Override
+	public double getKey() {
+		return getF().getAmount(Unit.WATTSECOND);
+	}
+
+	/**
+	 * @return	The nodes are compared on their total
+	 * 			estimated cost.
+	 * 			| result == this.getF().compareTo(node.getF())
+	 */
+	@Override
+	public int compareTo(Node<EnergyAmount> node) {
+		return this.getF().compareTo(node.getF());
 	}
 
 	/**

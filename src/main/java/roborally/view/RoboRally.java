@@ -3,33 +3,35 @@ package roborally.view;
 import static java.lang.System.out;
 
 import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringWriter;
 import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
 
 import javax.swing.*;
 
-public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
+public class RoboRally<Board, Robot, Wall, Battery, RepairKit, SurpriseBox> extends JFrame {
 
 	private static final long serialVersionUID = 1949718792817670580L;
-	private static final long BOARD_WIDTH = 2000;
-	private static final long BOARD_HEIGHT = 1000;
+	private static final long BOARD_WIDTH = 10; // 2000;
+	private static final long BOARD_HEIGHT = 10; // 1000;
 
 	private Map<String, Robot> robots = new HashMap<String, Robot>();
 	private Map<String, Battery> batteries = new HashMap<String, Battery>();
+	private Map<String, RepairKit> repairKits = new HashMap<String, RepairKit>();
+	private Map<String, SurpriseBox> surpriseBoxes = new HashMap<String, SurpriseBox>();
 	private Board board;
-	private final RoboRallyView<Board, Robot, Wall, Battery> view;
-	private final IFacade<Board, Robot, Wall, Battery> facade;
+	private final RoboRallyView<Board, Robot, Wall, Battery, RepairKit, SurpriseBox> view;
+	private final IFacade<Board, Robot, Wall, Battery, RepairKit, SurpriseBox> facade;
 	private final JLabel statusBar;
 
 	private List<Theme> themes;
 
-	public RoboRally(IFacade<Board, Robot, Wall, Battery> facade) {
+	public RoboRally(IFacade<Board, Robot, Wall, Battery, RepairKit, SurpriseBox> facade) {
 		super("RoboRally");
 		this.facade = facade;
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -41,7 +43,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		statusBar = new JLabel();
 		statusBar.setAlignmentX(LEFT_ALIGNMENT);
 		statusBar.setHorizontalTextPosition(SwingConstants.LEFT);
-		view = new RoboRallyView<Board, Robot, Wall, Battery>(this);
+		view = new RoboRallyView<Board, Robot, Wall, Battery, RepairKit, SurpriseBox>(this);
 		themes = getThemes();
 		view.setTheme(themes.get(0));
 		root.add(view);
@@ -60,7 +62,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		return board;
 	}
 
-	IFacade<Board, Robot, Wall, Battery> getFacade() {
+	IFacade<Board, Robot, Wall, Battery, RepairKit, SurpriseBox> getFacade() {
 		return facade;
 	}
 
@@ -80,6 +82,28 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 			}
 		}
 		return null;
+	}
+
+	String getRepairKitName(RepairKit repairKit) {
+		for (Entry<String, RepairKit> entry : repairKits.entrySet()) {
+			if (entry.getValue() == repairKit) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
+	String getSurpriseBoxName(SurpriseBox surpriseBox) {
+		for (Entry<String, SurpriseBox> entry : surpriseBoxes.entrySet()) {
+			if (entry.getValue() == surpriseBox) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
+	private boolean existsItemNamed(String name) {
+		return batteries.containsKey(name) || repairKits.containsKey(name) || surpriseBoxes.containsKey(name);
 	}
 
 	private void processCommand(String command) {
@@ -114,8 +138,8 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 			}
 		} else if (words[0].equals("addbattery") && 4 <= words.length && words.length <= 6) {
 			String name = words[1];
-			if (batteries.containsKey(name)) {
-				out.println("battery named " + name + " already exists");
+			if (existsItemNamed(name)) {
+				out.println("item named " + name + " already exists");
 				return;
 			}
 			long x, y;
@@ -162,6 +186,58 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 			if (wall != null) {
 				facade.putWall(board, x, y, wall);
 			}
+		} else if (words[0].equals("addrepair") && 5 == words.length) {
+			String name = words[1];
+			if (existsItemNamed(name)) {
+				out.println("item named " + name + " already exists");
+				return;
+			}
+			long x, y;
+			try {
+				x = Long.parseLong(words[2]);
+				y = Long.parseLong(words[3]);
+			} catch (NumberFormatException ex) {
+				out.println("position expected but found " + words[2] + " " + words[3]);
+				return;
+			}
+			double repairAmount;
+			try {
+				repairAmount = Double.parseDouble(words[4]);
+			} catch (NumberFormatException ex) {
+				out.println("double expected but found " + words[4]);
+				return;
+			}
+			RepairKit newRepairKit = facade.createRepairKit(repairAmount, 1000);
+			if (newRepairKit != null) {
+				repairKits.put(words[1], newRepairKit);
+				facade.putRepairKit(board, x, y, newRepairKit);
+			}
+		} else if (words[0].equals("addsurprise") && 5 == words.length) {
+			String name = words[1];
+			if (existsItemNamed(name)) {
+				out.println("item named " + name + " already exists");
+				return;
+			}
+			long x, y;
+			try {
+				x = Long.parseLong(words[2]);
+				y = Long.parseLong(words[3]);
+			} catch (NumberFormatException ex) {
+				out.println("position expected but found " + words[2] + " " + words[3]);
+				return;
+			}
+			int weight;
+			try {
+				weight = Integer.parseInt(words[4]);
+			} catch (NumberFormatException ex) {
+				out.println("double expected but found " + words[4]);
+				return;
+			}
+			SurpriseBox newSurpriseBox = facade.createSurpriseBox(weight);
+			if (newSurpriseBox != null) {
+				surpriseBoxes.put(words[1], newSurpriseBox);
+				facade.putSurpriseBox(board, x, y, newSurpriseBox);
+			}
 		} else if (words[0].equals("move") && words.length == 2) {
 			String name = words[1];
 			if (!robots.containsKey(name)) {
@@ -183,11 +259,17 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 				return;
 			}
 			String iname = words[2];
-			if (!batteries.containsKey(iname)) {
-				out.println("battery named " + iname + " does not exist");
+			if (!existsItemNamed(iname)) {
+				out.println("item named " + iname + " does not exist");
 				return;
 			}
-			facade.pickUp(robots.get(rname), batteries.get(iname));
+			if (batteries.containsKey(iname)) {
+				facade.pickUpBattery(robots.get(rname), batteries.get(iname));
+			} else if (repairKits.containsKey(iname)) {
+				facade.pickUpRepairKit(robots.get(rname), repairKits.get(iname));
+			} else {
+				facade.pickUpSurpriseBox(robots.get(rname), surpriseBoxes.get(iname));
+			}
 		} else if (words[0].equals("use") && words.length == 3) {
 			String rname = words[1];
 			if (!robots.containsKey(rname)) {
@@ -195,11 +277,29 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 				return;
 			}
 			String iname = words[2];
-			if (!batteries.containsKey(iname)) {
-				out.println("battery named " + iname + " does not exist");
+			if (!existsItemNamed(iname)) {
+				out.println("item named " + iname + " does not exist");
 				return;
 			}
-			facade.use(robots.get(rname), batteries.get(iname));
+			if (batteries.containsKey(iname)) {
+				facade.useBattery(robots.get(rname), batteries.get(iname));
+			} else if (repairKits.containsKey(iname)) {
+				facade.useRepairKit(robots.get(rname), repairKits.get(iname));
+			} else {
+				facade.useSurpriseBox(robots.get(rname), surpriseBoxes.get(iname));
+			}
+		} else if (words[0].equals("transfer") && words.length == 3) {
+			String rname = words[1];
+			if (!robots.containsKey(rname)) {
+				out.println("robot named " + rname + " does not exist");
+				return;
+			}
+			String rname2 = words[2];
+			if (!robots.containsKey(rname2)) {
+				out.println("robot named " + rname2 + " does not exist");
+				return;
+			}
+			facade.transferItems(robots.get(rname), robots.get(rname2));
 		} else if (words[0].equals("drop") && words.length == 3) {
 			String rname = words[1];
 			if (!robots.containsKey(rname)) {
@@ -207,11 +307,17 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 				return;
 			}
 			String iname = words[2];
-			if (!batteries.containsKey(iname)) {
-				out.println("battery named " + iname + " does not exist");
+			if (!existsItemNamed(iname)) {
+				out.println("item named " + iname + " does not exist");
 				return;
 			}
-			facade.drop(robots.get(rname), batteries.get(iname));
+			if (batteries.containsKey(iname)) {
+				facade.dropBattery(robots.get(rname), batteries.get(iname));
+			} else if (repairKits.containsKey(iname)) {
+				facade.dropRepairKit(robots.get(rname), repairKits.get(iname));
+			} else {
+				facade.dropSurpriseBox(robots.get(rname), surpriseBoxes.get(iname));
+			}
 		} else if (words[0].equals("moveto") && words.length == 3) {
 			String rname = words[1];
 			if (!robots.containsKey(rname)) {
@@ -254,19 +360,97 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 			} else {
 				out.println("yes (consuming " + required + " ws)");
 			}
+		} else if (words[0].equals("loadprogram") && words.length == 3) {
+			String name = words[1];
+			if (!robots.containsKey(name)) {
+				out.println("robot named " + name + " does not exist");
+				return;
+			}
+			facade.loadProgramFromFile(robots.get(name), words[2]);
+		} else if (words[0].equals("saveprogram") && words.length == 3) {
+			String name = words[1];
+			if (!robots.containsKey(name)) {
+				out.println("robot named " + name + " does not exist");
+				return;
+			}
+			facade.saveProgramToFile(robots.get(name), words[2]);
+		} else if (words[0].equals("showprogram") && words.length == 2) {
+			String name = words[1];
+			if (!robots.containsKey(name)) {
+				out.println("robot named " + name + " does not exist");
+				return;
+			}
+			StringWriter writer = new StringWriter();
+			facade.prettyPrintProgram(robots.get(name), writer);
+			out.println(writer.toString());
+		} else if (words[0].equals("execute") && words.length == 3) {
+			String name = words[1];
+			if (!robots.containsKey(name)) {
+				out.println("robot named " + name + " does not exist");
+				return;
+			}
+			int nbSteps;
+			try {
+				nbSteps = Integer.parseInt(words[2]);
+			} catch (NumberFormatException ex) {
+				out.println("integer expected but found " + words[2]);
+				return;
+			}
+			while (0 < nbSteps) {
+				facade.stepn(robots.get(name), 1);
+				this.repaint();
+				if (nbSteps != 0) {
+					try {
+						Thread.sleep(250);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				nbSteps--;
+			}
+		} else if (words[0].equals("executeall") && words.length == 2) {
+			int nbSteps;
+			try {
+				nbSteps = Integer.parseInt(words[1]);
+			} catch (NumberFormatException ex) {
+				out.println("integer expected but found " + words[1]);
+				return;
+			}
+			while (0 < nbSteps) {
+				for (Robot robot : robots.values()) {
+					facade.stepn(robot, 1);
+				}
+				this.repaint();
+				if (nbSteps != 0) {
+					try {
+						Thread.sleep(250);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				nbSteps--;
+			}
 		} else if (words[0].equals("help") && words.length == 1) {
 			out.println("commands:");
-			out.println("\taddbattery <bname> <long> <long> [<double>] [<int>]");
+			out.println("\taddbattery <iname> <long> <long> [<double>] [<int>]");
+			out.println("\taddrepair <iname> <long> <long> <double>");
+			out.println("\taddsurprise <iname> <long> <long> <double>");
 			out.println("\taddwall <long> <long>");
 			out.println("\taddrobot <rname> <long> <long> [<double>]");
 			out.println("\tmove <rname>");
 			out.println("\tturn <rname>");
 			out.println("\tshoot <rname>");
-			out.println("\tpickup <rname> <bname>");
-			out.println("\tuse <rname> <bname>");
-			out.println("\tdrop <rname> <bname>");
+			out.println("\tpickup <rname> <iname>");
+			out.println("\tuse <rname> <iname>");
+			out.println("\ttransfer <rname> <rname>");
+			out.println("\tdrop <rname> <iname>");
 			out.println("\tcanreach <rname> <long> <long>");
 			out.println("\tmoveto <rname> <long> <long>");
+			out.println("\tloadprogram <rname> <path>");
+			out.println("\tsaveprogram <rname> <path>");
+			out.println("\tshowprogram <rname>");
+			out.println("\texecute <rname> <int>");
+			out.println("\texecuteall <int>");
 			out.println("\texit");
 		} else {
 			out.println("unknown command");
@@ -297,16 +481,18 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 			}
 			command = readCommand(reader);
 		}
+		setVisible(false);
+		dispose();
 		out.println("bye");
 	}
 
 	public static void main(String[] args) {
-		// modify the code between <begin> and <end> (substitute the generic
-		// arguments with your classes and replace
+		// modify the code between <begin> and <end>
+		// (substitute the generic arguments with your classes and replace
 		// roborally.model.Facade with your facade implementation)
 		/* <begin> */
-		RoboRally<roborally.Board, roborally.Robot, roborally.Wall, roborally.Battery> roboRally = new RoboRally<roborally.Board, roborally.Robot, roborally.Wall, roborally.Battery>(
-				new roborally.view.Facade());
+		RoboRally<roborally.Board, roborally.Robot, roborally.Wall, roborally.Battery, roborally.RepairKit, roborally.SurpriseBox> roboRally = new RoboRally<roborally.Board, roborally.Robot, roborally.Wall, roborally.Battery, roborally.RepairKit, roborally.SurpriseBox>(
+				new Facade());
 		/* <end> */
 		roboRally.setVisible(true);
 		roboRally.run();
@@ -409,6 +595,14 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 			contextMenu.add(createContextBatteryMenu(battery));
 			hasPieceAt = true;
 		}
+		for (RepairKit repairKit : getRepairKitsAt(x, y)) {
+			contextMenu.add(createContextRepairKitMenu(repairKit));
+			hasPieceAt = true;
+		}
+		for (SurpriseBox surpriseBox : getSurpriseBoxesAt(x, y)) {
+			contextMenu.add(createContextSurpriseBoxMenu(surpriseBox));
+			hasPieceAt = true;
+		}
 		for (Wall wall : getWallsAt(x, y)) {
 			contextMenu.add(createContextWallMenu(wall));
 			hasPieceAt = true;
@@ -422,10 +616,9 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 	}
 
 	private JMenu createContextRobotMenu(final Robot robot) {
-		final long x = facade.getRobotX(robot);
-		final long y = facade.getRobotY(robot);
 		final JMenu robotMenu = new JMenu("Robot " + getRobotName(robot));
 
+		// Move
 		final JMenuItem moveItem = new JMenuItem("Move");
 		moveItem.addActionListener(new ActionListener() {
 			@Override
@@ -436,6 +629,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		});
 		robotMenu.add(moveItem);
 
+		// Turn
 		final JMenuItem turnItem = new JMenuItem("Turn");
 		turnItem.addActionListener(new ActionListener() {
 			@Override
@@ -446,6 +640,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		});
 		robotMenu.add(turnItem);
 
+		// Shoot
 		final JMenuItem shootItem = new JMenuItem("Shoot");
 		shootItem.addActionListener(new ActionListener() {
 			@Override
@@ -456,12 +651,13 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		});
 		robotMenu.add(shootItem);
 
+		// Move to robot
 		final JMenu moveToMenu = new JMenu("Move to");
 		for (final Robot otherRobot : facade.getRobots(board)) {
 			if (robot == otherRobot)
 				continue;
 
-			final JMenuItem moveToItem = new JMenuItem(getRobotName(otherRobot));
+			final JMenuItem moveToItem = new JMenuItem("Robot " + getRobotName(otherRobot));
 			moveToItem.addActionListener(new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent e) {
@@ -473,50 +669,21 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		robotMenu.add(moveToMenu);
 		robotMenu.addSeparator();
 
-		final JMenu pickUpMenu = new JMenu("Pick up");
-		for (final Battery battery : getBatteriesAt(x, y)) {
-			final JMenuItem pickUpItem = new JMenuItem(getBatteryName(battery));
-			pickUpItem.addActionListener(new ActionListener() {
-				@Override
-				public void actionPerformed(ActionEvent e) {
-					facade.pickUp(robot, battery);
-					view.repaint();
-				}
-			});
-			pickUpMenu.add(pickUpItem);
+		// Pick up items
+		robotMenu.add(createContextPickupMenu(robot));
+
+		// Use and drop items
+		for (final JMenu menu : createContextUseDropMenus(robot)) {
+			robotMenu.add(menu);
 		}
-		robotMenu.add(pickUpMenu);
 
-		final JMenu useMenu = new JMenu("Use");
-		final JMenu dropMenu = new JMenu("Drop");
-		for (final Battery battery : facade.getPossessions(robot)) {
-			final JMenuItem useItem = new JMenuItem(getBatteryName(battery));
-			useItem.addActionListener(new ActionListener() {
-				@Override
-				public void actionPerformed(ActionEvent e) {
-					facade.use(robot, battery);
-				}
-			});
-			useMenu.add(useItem);
-
-			final JMenuItem dropItem = new JMenuItem(getBatteryName(battery));
-			dropItem.addActionListener(new ActionListener() {
-				@Override
-				public void actionPerformed(ActionEvent e) {
-					facade.drop(robot, battery);
-					view.repaint();
-				}
-			});
-			dropMenu.add(dropItem);
-		}
-		robotMenu.add(useMenu);
-		robotMenu.add(dropMenu);
-
+		// Terminate robot
 		final JMenuItem terminateItem = new JMenuItem("Terminate");
 		terminateItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				facade.terminateRobot(robot);
+				robots.remove(getRobotName(robot));
 				view.repaint();
 			}
 		});
@@ -526,14 +693,136 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		return robotMenu;
 	}
 
+	private JMenu createContextPickupMenu(final Robot robot) {
+		final long x = facade.getRobotX(robot);
+		final long y = facade.getRobotY(robot);
+		final JMenu pickUpMenu = new JMenu("Pick up");
+
+		// Batteries
+		for (final Battery battery : getBatteriesAt(x, y)) {
+			final JMenuItem pickUpItem = new JMenuItem("Battery " + getBatteryName(battery));
+			pickUpItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.pickUpBattery(robot, battery);
+					view.repaint();
+				}
+			});
+			pickUpMenu.add(pickUpItem);
+		}
+		// Repair kits
+		for (final RepairKit repairKit : getRepairKitsAt(x, y)) {
+			final JMenuItem pickUpItem = new JMenuItem("Repair kit " + getRepairKitName(repairKit));
+			pickUpItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.pickUpRepairKit(robot, repairKit);
+					view.repaint();
+				}
+			});
+			pickUpMenu.add(pickUpItem);
+		}
+		// Surprise boxes
+		for (final SurpriseBox surpriseBox : getSurpriseBoxesAt(x, y)) {
+			final JMenuItem pickUpItem = new JMenuItem("Surprise box " + getSurpriseBoxName(surpriseBox));
+			pickUpItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.pickUpSurpriseBox(robot, surpriseBox);
+					view.repaint();
+				}
+			});
+			pickUpMenu.add(pickUpItem);
+		}
+		return pickUpMenu;
+	}
+
+	private Iterable<JMenu> createContextUseDropMenus(final Robot robot) {
+		final JMenu useMenu = new JMenu("Use");
+		final JMenu dropMenu = new JMenu("Drop");
+
+		// Batteries
+		for (final Battery battery : facade.getRobotBatteries(robot)) {
+			final JMenuItem useItem = new JMenuItem("Battery " + getBatteryName(battery));
+			useItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.useBattery(robot, battery);
+					view.repaint();
+				}
+			});
+			useMenu.add(useItem);
+
+			final JMenuItem dropItem = new JMenuItem("Battery " + getBatteryName(battery));
+			dropItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.dropBattery(robot, battery);
+					view.repaint();
+				}
+			});
+			dropMenu.add(dropItem);
+		}
+
+		// Repair kits
+		for (final RepairKit repairKit : facade.getRobotRepairKits(robot)) {
+			final JMenuItem useItem = new JMenuItem("Repair kit " + getRepairKitName(repairKit));
+			useItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.useRepairKit(robot, repairKit);
+					view.repaint();
+				}
+			});
+			useMenu.add(useItem);
+
+			final JMenuItem dropItem = new JMenuItem("Repair kit " + getRepairKitName(repairKit));
+			dropItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.dropRepairKit(robot, repairKit);
+					view.repaint();
+				}
+			});
+			dropMenu.add(dropItem);
+		}
+
+		// Surprise boxes
+		for (final SurpriseBox surpriseBox : facade.getRobotSurpriseBoxes(robot)) {
+			final JMenuItem useItem = new JMenuItem("Surprise box " + getSurpriseBoxName(surpriseBox));
+			useItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.useSurpriseBox(robot, surpriseBox);
+					view.repaint();
+				}
+			});
+			useMenu.add(useItem);
+
+			final JMenuItem dropItem = new JMenuItem("Surprise box " + getSurpriseBoxName(surpriseBox));
+			dropItem.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					facade.dropSurpriseBox(robot, surpriseBox);
+					view.repaint();
+				}
+			});
+			dropMenu.add(dropItem);
+		}
+
+		return Arrays.asList(useMenu, dropMenu);
+	}
+
 	private JMenu createContextBatteryMenu(final Battery battery) {
 		final JMenu batteryMenu = new JMenu("Battery " + getBatteryName(battery));
 
+		// Terminate battery
 		final JMenuItem terminateItem = new JMenuItem("Terminate");
 		terminateItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				facade.terminateBattery(battery);
+				batteries.remove(getBatteryName(battery));
 				view.repaint();
 			}
 		});
@@ -542,9 +831,46 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		return batteryMenu;
 	}
 
+	private JMenu createContextRepairKitMenu(final RepairKit repairKit) {
+		final JMenu repairKitMenu = new JMenu("Repair kit " + getRepairKitName(repairKit));
+
+		// Terminate repair kit
+		final JMenuItem terminateItem = new JMenuItem("Terminate");
+		terminateItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				facade.terminateRepairKit(repairKit);
+				repairKits.remove(getRepairKitName(repairKit));
+				view.repaint();
+			}
+		});
+		repairKitMenu.add(terminateItem);
+
+		return repairKitMenu;
+	}
+
+	private JMenu createContextSurpriseBoxMenu(final SurpriseBox surpriseBox) {
+		final JMenu surpriseBoxMenu = new JMenu("Surprise box " + getSurpriseBoxName(surpriseBox));
+
+		// Terminate surprise box
+		final JMenuItem terminateItem = new JMenuItem("Terminate");
+		terminateItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				facade.terminateSurpriseBox(surpriseBox);
+				surpriseBoxes.remove(getSurpriseBoxName(surpriseBox));
+				view.repaint();
+			}
+		});
+		surpriseBoxMenu.add(terminateItem);
+
+		return surpriseBoxMenu;
+	}
+
 	private JMenu createContextWallMenu(final Wall wall) {
 		final JMenu wallMenu = new JMenu("Wall");
 
+		// Terminate wall
 		final JMenuItem terminateItem = new JMenuItem("Terminate");
 		terminateItem.addActionListener(new ActionListener() {
 			@Override
@@ -559,6 +885,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 	}
 
 	public void createContextAddMenu(final JPopupMenu menu, final int x, final int y) {
+		// Add robot
 		final JMenuItem addRobotItem = new JMenuItem("Add robot");
 		addRobotItem.addActionListener(new ActionListener() {
 			@Override
@@ -576,6 +903,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		});
 		menu.add(addRobotItem);
 
+		// Add battery
 		final JMenuItem addBatteryItem = new JMenuItem("Add battery");
 		addBatteryItem.addActionListener(new ActionListener() {
 			@Override
@@ -593,6 +921,45 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		});
 		menu.add(addBatteryItem);
 
+		// Add repair kit
+		final JMenuItem addRepairKitItem = new JMenuItem("Add repair kit");
+		addRepairKitItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String name = promptName("Enter a name for the new repair kit");
+				if (name == null || name.trim().isEmpty())
+					return;
+
+				StringBuilder cmd = new StringBuilder();
+				cmd.append("addrepair").append(' ').append(name).append(' ');
+				cmd.append(x).append(' ').append(y).append(' ');
+				cmd.append(defaultRepairKitEnergy);
+				processCommand(cmd.toString());
+				view.repaint();
+			}
+		});
+		menu.add(addRepairKitItem);
+
+		// Add surprise box
+		final JMenuItem addSurpriseBoxItem = new JMenuItem("Add surprise box");
+		addSurpriseBoxItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String name = promptName("Enter a name for the new surprise box");
+				if (name == null || name.trim().isEmpty())
+					return;
+
+				StringBuilder cmd = new StringBuilder();
+				cmd.append("addsurprise").append(' ').append(name).append(' ');
+				cmd.append(x).append(' ').append(y).append(' ');
+				cmd.append(defaultSurpriseBoxWeight);
+				processCommand(cmd.toString());
+				view.repaint();
+			}
+		});
+		menu.add(addSurpriseBoxItem);
+
+		// Add wall
 		final JMenuItem addWallItem = new JMenuItem("Add wall");
 		addWallItem.addActionListener(new ActionListener() {
 			@Override
@@ -628,6 +995,24 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		return batteries;
 	}
 
+	private Set<RepairKit> getRepairKitsAt(long x, long y) {
+		Set<RepairKit> repairKits = new HashSet<RepairKit>();
+		for (RepairKit repairKit : facade.getRepairKits(board)) {
+			if (facade.getRepairKitX(repairKit) == x && facade.getRepairKitY(repairKit) == y)
+				repairKits.add(repairKit);
+		}
+		return repairKits;
+	}
+
+	private Set<SurpriseBox> getSurpriseBoxesAt(long x, long y) {
+		Set<SurpriseBox> surpriseBoxes = new HashSet<SurpriseBox>();
+		for (SurpriseBox surpriseBox : facade.getSurpriseBoxes(board)) {
+			if (facade.getSurpriseBoxX(surpriseBox) == x && facade.getSurpriseBoxY(surpriseBox) == y)
+				surpriseBoxes.add(surpriseBox);
+		}
+		return surpriseBoxes;
+	}
+
 	private Set<Wall> getWallsAt(long x, long y) {
 		Set<Wall> walls = new HashSet<Wall>();
 		for (Wall wall : facade.getWalls(board)) {
@@ -636,4 +1021,7 @@ public class RoboRally<Board, Robot, Wall, Battery> extends JFrame {
 		}
 		return walls;
 	}
+
+	private static final double defaultRepairKitEnergy = 2500.0;
+	private static final int defaultSurpriseBoxWeight = 2000;
 }

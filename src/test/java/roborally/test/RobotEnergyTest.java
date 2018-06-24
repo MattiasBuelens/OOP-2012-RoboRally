@@ -9,6 +9,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import roborally.*;
+import roborally.EnergyAmount.Unit;
 
 public class RobotEnergyTest {
 
@@ -26,61 +27,62 @@ public class RobotEnergyTest {
 
 	@Test
 	public void getEnergy() {
-		assertEquals(500, robot.getEnergy(), 0.1);
+		assertEquals(500, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
-	public void getMaxiumEnergy() {
-		assertEquals(20000, robot.getMaximumEnergy(), 0.1);
+	public void getCapacity() {
+		assertEquals(20000, robot.getCapacityAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
 	public void getEnergyFraction() {
-		double maximumEnergy = robot.getMaximumEnergy();
-		assertEquals(500 / maximumEnergy, robot.getEnergyFraction(), 0.1);
+		double capacity = robot.getCapacityAmount(Unit.WATTSECOND);
+		assertEquals(500 / capacity, robot.getEnergyFraction(), 0.1);
 	}
 
 	@Test
 	public void setEnergy_NormalCase() {
-		robot.setEnergy(1337);
-		assertEquals(1337, robot.getEnergy(), 0.1);
+		robot.setEnergy(new EnergyAmount(1337, Unit.WATTSECOND));
+		assertEquals(1337, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void setEnergy_Terminated() {
 		robot.terminate();
-		robot.setEnergy(1337);
+		robot.setEnergy(new EnergyAmount(1337, Unit.WATTSECOND));
 		fail();
 	}
 
 	@Test
 	public void setEnergy_NegativeEnergy() {
-		double energy = -5;
+		EnergyAmount energy = new EnergyAmount(-5, Unit.WATTSECOND);
 		if (robot.isValidEnergy(energy)) {
 			robot.setEnergy(energy);
 			fail();
 		}
 		// Energy unchanged
-		assertEquals(500, robot.getEnergy(), 0.1);
+		assertEquals(500, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
 	public void setEnergy_Overflow() {
-		double energy = 1e6;
+		EnergyAmount energy = new EnergyAmount(1e6, Unit.WATTSECOND);
 		if (robot.isValidEnergy(energy)) {
 			robot.setEnergy(energy);
 			fail();
 		}
 		// Energy unchanged
-		assertEquals(500, robot.getEnergy(), 0.1);
+		assertEquals(500, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
 	public void isValidMaximumEnergy() {
-		assertTrue(Robot.isValidMaximumEnergy(100));
-		assertTrue(Robot.isValidMaximumEnergy(Long.MAX_VALUE));
-		assertFalse(Robot.isValidMaximumEnergy(0));
-		assertFalse(Robot.isValidMaximumEnergy(-100));
+		assertTrue(robot.isValidCapacity(new EnergyAmount(100, Unit.WATTSECOND)));
+		assertTrue(robot.isValidCapacity(robot.getMaximumCapacity()));
+		assertFalse(robot.isValidCapacity(new EnergyAmount(Long.MAX_VALUE, Unit.WATTSECOND)));
+		assertFalse(robot.isValidCapacity(EnergyAmount.ZERO));
+		assertFalse(robot.isValidCapacity(new EnergyAmount(-100, Unit.WATTSECOND)));
 	}
 
 	/*
@@ -89,30 +91,32 @@ public class RobotEnergyTest {
 
 	@Test
 	public void recharge_NormalCase() {
-		assertTrue(robot.canRecharge(500));
-		robot.recharge(500);
-		assertEquals(1000, robot.getEnergy(), 0.1);
+		EnergyAmount amount = new EnergyAmount(500, Unit.WATTSECOND);
+		assertTrue(robot.canRecharge(amount));
+		robot.recharge(amount);
+		assertEquals(1000, robot.getEnergyAmount(Unit.WATTSECOND), 0.1);
 	}
 
 	@Test
-	public void recharge_specialCases() {
-		assertFalse(robot.canRecharge(-2));
+	public void recharge_IllegalCases() {
+		assertFalse(robot.canRecharge(new EnergyAmount(-2, Unit.WATTSECOND)));
 		robot.terminate();
-		assertFalse(robot.canRecharge(2));
+		assertFalse(robot.canRecharge(new EnergyAmount(2, Unit.WATTSECOND)));
 	}
 
 	@Test
 	public void drain_NormalCase() {
-		assertTrue(robot.canDrain(500));
-		robot.drain(500);
-		assertEquals(0, robot.getEnergy(), 0.1);
+		EnergyAmount amount = new EnergyAmount(500, Unit.WATTSECOND);
+		assertTrue(robot.canDrain(amount));
+		robot.drain(amount);
+		assertEquals(EnergyAmount.ZERO, robot.getEnergyAmount());
 	}
 
 	@Test
-	public void drain_specialCases() {
-		assertFalse(robot.canDrain(-2));
+	public void drain_IllegalCases() {
+		assertFalse(robot.canDrain(new EnergyAmount(-2, Unit.WATTSECOND)));
 		robot.terminate();
-		assertFalse(robot.canDrain(2));
+		assertFalse(robot.canDrain(new EnergyAmount(2, Unit.WATTSECOND)));
 	}
 
 	/*
@@ -123,21 +127,21 @@ public class RobotEnergyTest {
 	public void transfer_NormalCase() {
 		Battery battery = new Battery(2);
 
-		double batteryEnergy = battery.getEnergy();
-		double robotEnergy = robot.getEnergy();
+		EnergyAmount batteryEnergy = battery.getEnergyAmount();
+		EnergyAmount robotEnergy = robot.getEnergyAmount();
 
-		assertTrue(battery.canTransfer(robot, battery.getEnergy()));
+		assertTrue(battery.canTransfer(robot, batteryEnergy));
 
-		battery.transfer(robot, battery.getEnergy());
+		battery.transfer(robot, batteryEnergy);
 
-		assertEquals(robotEnergy - batteryEnergy, robot.getEnergy(), 0.1);
-		assertEquals(0, battery.getEnergy(), 0.1);
+		assertEquals(robotEnergy.subtract(batteryEnergy), robot.getEnergyAmount());
+		assertEquals(EnergyAmount.ZERO, battery.getEnergyAmount());
 	}
 
 	@Test
 	public void transfer_FromRobot() {
-		Battery battery = new Battery(2, 500);
-		assertFalse(robot.canTransfer(battery, 100));
+		Battery battery = new Battery(2);
+		assertFalse(robot.canTransfer(battery, EnergyAmount.ZERO));
 	}
 
 }
