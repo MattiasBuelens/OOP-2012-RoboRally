@@ -11,7 +11,7 @@ import be.kuleuven.cs.som.annotate.*;
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 1.0
+ * @version 2.0
  */
 public enum Orientation {
 	/**
@@ -31,9 +31,6 @@ public enum Orientation {
 	 */
 	LEFT(3, new Vector(-1, 0));
 
-	private int value;
-	private Vector vector;
-
 	private Orientation(int value, Vector vector) {
 		this.value = value;
 		this.vector = vector;
@@ -43,16 +40,16 @@ public enum Orientation {
 	 * Get an integer representation of this orientation.
 	 * 
 	 * @return	Orientation.UP is represented by 0.
-	 * 			| if (Orientation.UP)
+	 * 			| if (this == Orientation.UP)
 	 * 			|		result == 0
 	 * @return	Orientation.RIGHT is represented by 1.
-	 * 			| if (Orientation.RIGHT)
+	 * 			| if (this == Orientation.RIGHT)
 	 * 			|		result == 1
 	 * @return 	Orientation.DOWN is represented by 2.
-	 * 			| if (Orientation.DOWN)
+	 * 			| if (this == Orientation.DOWN)
 	 * 			|		result == 2
 	 * @return	Orientation.LEFT is represented by 3.
-	 * 			| if (Orientation.LEFT)
+	 * 			| if (this == Orientation.LEFT)
 	 * 			|		result == 3
 	 */
 	@Basic
@@ -61,28 +58,51 @@ public enum Orientation {
 		return value;
 	}
 
+	private int value;
+
 	/**
 	 * Get a vector representation of this orientation.
 	 * 
 	 * @return	The resulting vector has a length of one.
 	 * 			| result.manhattanDistance() == 1
 	 * @return  If orientation is UP, the resulting vector points upward.
-	 * 			| if (Orientation.UP)
+	 * 			| if (this == Orientation.UP)
 	 * 			|	result.isUp()
 	 * @return  If orientation is RIGHT, the resulting vector points to the right.
-	 * 			| if (Orientation.RIGHT)
+	 * 			| if (this == Orientation.RIGHT)
 	 * 			|	result.isRight()
 	 * @return  If orientation is DOWN, the resulting vector points downward.
-	 * 			| if (Orientation.DOWN)
+	 * 			| if (this == Orientation.DOWN)
 	 * 			|	result.isDown()
 	 * @return  If orientation is LEFT, the resulting vector points to the left.
-	 * 			| if (Orientation.LEFT)
+	 * 			| if (this == Orientation.LEFT)
 	 * 			|	result.isLeft()
 	 */
 	@Basic
 	@Immutable
 	public Vector getVector() {
 		return vector;
+	}
+
+	private Vector vector;
+
+	/**
+	 * Get an orientation by its integer representation.
+	 * @param value
+	 * 			The integer representation.
+	 * @return	The orientation whose value representation equals the given value,
+	 * 			or null if no such orientation exists.
+	 * 			| if (for some elem in getValues() : elem.getValue() == value)
+	 * 			|	result == elem
+	 * 			| else
+	 * 			|	result == null
+	 */
+	public static Orientation getByValue(int value) {
+		for (Orientation orientation : values()) {
+			if (orientation.getValue() == value)
+				return orientation;
+		}
+		return null;
 	}
 
 	/**
@@ -97,19 +117,19 @@ public enum Orientation {
 	 * 			|	result == Orientation.LEFT
 	 * @return	If the vector is horizontal and has a positive X-coordinate,
 	 * 			the resulting orientation is RIGHT.
-	 * 			| if (vector.isHorizontal() && vector.isRight())
+	 * 			| else if (vector.isHorizontal() && vector.isRight())
 	 * 			|	result == Orientation.RIGHT
 	 * @return	If the vector is vertical and has a negative Y-coordinate,
 	 * 			the resulting orientation is UP.
-	 * 			| if (vector.isVertical() && vector.isUp())
+	 * 			| else if (vector.isVertical() && vector.isUp())
 	 * 			|	result == Orientation.UP
 	 * @return	If the vector is vertical and has a positive Y-coordinate,
 	 * 			the resulting orientation is DOWN.
-	 * 			| if (vector.isVertical() && vector.isDown())
+	 * 			| else if (vector.isVertical() && vector.isDown())
 	 * 			|	result == Orientation.DOWN
 	 * @return	If the vector is not horizontal and not vertical,
 	 * 			null is returned.
-	 * 			| if (!vector.isHorizontal() && !vector.isVertical())
+	 * 			| else
 	 * 			|	result == null
 	 */
 	public static Orientation fromVector(Vector vector) {
@@ -117,25 +137,6 @@ public enum Orientation {
 			return vector.isLeft() ? Orientation.LEFT : Orientation.RIGHT;
 		} else if (vector.isVertical()) {
 			return vector.isUp() ? Orientation.UP : Orientation.DOWN;
-		}
-		return null;
-	}
-
-	/**
-	 * Get an orientation by its integer representation.
-	 * @param value
-	 * 			The integer representation.
-	 * @result	The orientation whose value representation equals the given value,
-	 * 			or null if no such orientation exists.
-	 * 			| if (for some elem in getValues() : elem.getValue() == value)
-	 * 			|	result == elem
-	 * 			| else
-	 * 			|	result == null
-	 */
-	public static Orientation getByValue(int value) {
-		for (Orientation orientation : values()) {
-			if (orientation.getValue() == value)
-				return orientation;
 		}
 		return null;
 	}
@@ -204,7 +205,7 @@ public enum Orientation {
 	 * 			is applied <code>n</code> to this orientation.
 	 * 			| let
 	 * 			|   orientation = this
-	 * 			| for i in 1..n :
+	 * 			| for each i in 1..n :
 	 * 			|   orientation = orientation.x()
 	 */
 	public int getDifference(Orientation orientation) {

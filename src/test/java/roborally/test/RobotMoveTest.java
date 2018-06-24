@@ -1,44 +1,59 @@
 package roborally.test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import org.junit.*;
+import org.junit.Before;
+import org.junit.Test;
 
-import roborally.InvalidPositionException;
+import roborally.Board;
 import roborally.Orientation;
 import roborally.Robot;
+import roborally.Vector;
 
 public class RobotMoveTest {
 
-	Robot robotEnergy500;
-	Robot robotEnergy50;
-	Robot robotInCorner;
+	Robot robotEnergy500, robotEnergy50, robotInCorner;
+	Board board;
 
 	@Before
 	public void setUp() throws Exception {
-		robotEnergy500 = new Robot(3, 7, Orientation.RIGHT, 500);
-		robotEnergy50 = new Robot(1, 2, Orientation.RIGHT, 50);
-		robotInCorner = new Robot(0, 0, Orientation.UP, 500);
+		board = new Board(10, 10);
+		robotEnergy500 = new Robot(Orientation.RIGHT, 500);
+		robotEnergy500.placeOnBoard(board, new Vector(3, 7));
+		robotEnergy50 = new Robot(Orientation.RIGHT, 50);
+		robotEnergy50.placeOnBoard(board, new Vector(1, 2));
+		robotInCorner = new Robot(Orientation.UP, 500);
+		robotInCorner.placeOnBoard(board, new Vector(0, 0));
 	}
 
 	@Test
-	public void move_NormalCase() throws InvalidPositionException {
+	public void move_NormalCase() {
 		robotEnergy500.move();
-		assertEquals(4, robotEnergy500.getX());
-		assertEquals(7, robotEnergy500.getY());
+
+		assertEquals(new Vector(4, 7), robotEnergy500.getPosition());
 		assertEquals(Orientation.RIGHT, robotEnergy500.getOrientation());
 		assertEquals(0, robotEnergy500.getEnergy(), 0.1);
 	}
 
-	@Test(expected = AssertionError.class)
-	public void move_InsufficientEnergy() throws InvalidPositionException {
-		robotEnergy50.move();
+	@Test(expected = IllegalArgumentException.class)
+	public void move_InvalidPosition() {
+		robotInCorner.move();
 		fail();
 	}
 
-	@Test(expected = InvalidPositionException.class)
-	public void move_InvalidPosition() throws InvalidPositionException {
-		robotInCorner.move();
+	@Test(expected = IllegalArgumentException.class)
+	public void move_NotPlaced() {
+		robotEnergy500.removeFromBoard();
+		robotEnergy500.move();
 		fail();
+	}
+
+	@Test
+	public void canMove() {
+		assertTrue(robotEnergy500.canMove());
+		assertFalse(robotEnergy50.canMove());
 	}
 }

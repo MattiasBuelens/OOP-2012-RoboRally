@@ -4,18 +4,23 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 
+import roborally.Board;
 import roborally.Orientation;
 import roborally.Robot;
+import roborally.Vector;
 
 public class RobotTurnTest {
 
-	Robot robotEnergy500;
-	Robot robotEnergy50;
+	Robot robotEnergy500, robotEnergy50;
+	Board board;
 
 	@Before
 	public void setUp() throws Exception {
-		robotEnergy500 = new Robot(3, 7, Orientation.RIGHT, 500);
-		robotEnergy50 = new Robot(1, 2, Orientation.RIGHT, 50);
+		board = new Board(10, 10);
+		robotEnergy500 = new Robot(Orientation.RIGHT, 500);
+		robotEnergy500.placeOnBoard(board, new Vector(3, 7));
+		robotEnergy50 = new Robot(Orientation.RIGHT, 50);
+		robotEnergy50.placeOnBoard(board, new Vector(1, 2));
 	}
 
 	@Test
@@ -29,12 +34,6 @@ public class RobotTurnTest {
 		assertEquals(300, robotEnergy500.getEnergy(), 0.1);
 	}
 
-	@Test(expected = AssertionError.class)
-	public void turnClockwise_InsufficientEnergy() {
-		robotEnergy50.turnClockwise();
-		fail();
-	}
-
 	@Test
 	public void turnCounterClockwise_NormalCase() {
 		robotEnergy500.turnCounterClockwise();
@@ -46,9 +45,9 @@ public class RobotTurnTest {
 		assertEquals(300, robotEnergy500.getEnergy(), 0.1);
 	}
 
-	@Test(expected = AssertionError.class)
-	public void turnCounterClockwise_InsufficientEnergy() {
-		robotEnergy50.turnCounterClockwise();
-		fail();
+	@Test
+	public void canTurn() {
+		assertTrue(robotEnergy500.canTurn());
+		assertFalse(robotEnergy50.canTurn());
 	}
 }

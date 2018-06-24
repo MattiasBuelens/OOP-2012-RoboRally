@@ -1,7 +1,12 @@
 package roborally;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 import be.kuleuven.cs.som.annotate.Basic;
 import be.kuleuven.cs.som.annotate.Immutable;
+import be.kuleuven.cs.som.annotate.Value;
 
 /**
  * Represents a vector in a two axis coordinate system.
@@ -12,10 +17,14 @@ import be.kuleuven.cs.som.annotate.Immutable;
  * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 1.0
+ * @version 2.0
  */
+@Value
 public class Vector {
 
+	/**
+	 * The zero vector (0, 0) at the origin of the coordinate system.
+	 */
 	public static final Vector ZERO = new Vector(0, 0);
 
 	public Vector(long x, long y) {
@@ -32,7 +41,7 @@ public class Vector {
 		return x;
 	}
 
-	final long x;
+	private final long x;
 
 	/**
 	 * Get the Y-coordinate of this vector.
@@ -43,7 +52,7 @@ public class Vector {
 		return y;
 	}
 
-	final long y;
+	private final long y;
 
 	/**
 	 * Add a vector to this vector.
@@ -119,6 +128,17 @@ public class Vector {
 	}
 
 	/**
+	 * Get the Manhattan distance between this vector and the given vector.
+	 * @param vector
+	 * 			The vector for which to get the distance.
+	 * @effect	The result is the Manhattan distance of the relative position vector.
+	 * 			| this.subtract(vector).manhattanDistance()
+	 */
+	public long manhattanDistance(Vector vector) {
+		return this.subtract(vector).manhattanDistance();
+	}
+
+	/**
 	 * Check whether this vector is oriented horizontally.
 	 * 
 	 * @return  True if this vector has a zero Y-coordinate.
@@ -137,26 +157,6 @@ public class Vector {
 	 */
 	public boolean isVertical() {
 		return getX() == 0;
-	}
-
-	/**
-	 * Rotate this vector clockwise by 90 degrees.
-	 * 
-	 * @return	| result.getX() = this.getY()
-	 * 			| result.getY() = -this.getX()
-	 */
-	public Vector rotateClockwise() {
-		return new Vector(getY(), -getX());
-	}
-
-	/**
-	 * Rotate this vector counterclockwise by 90 degrees.
-	 * 
-	 * @return	| result.getX() = -this.getY()
-	 * 			| result.getY() = this.getX()
-	 */
-	public Vector rotateCounterClockwise() {
-		return new Vector(-getY(), getX());
 	}
 
 	/**
@@ -200,23 +200,97 @@ public class Vector {
 	}
 
 	/**
-	 * Two vectors are equal if and only if their respective coordinates are equal.
+	 * Get a set of all direct neighbours of this vector.
+	 * 
+	 * @return	The resulting set of neighbours contains all
+	 * 			neighbours at a distance of one from this vector.
+	 * 			| result == getNeighbours(1)
+	 */
+	public Set<Vector> getNeighbours() {
+		return getNeighbours(1);
+	}
+
+	/**
+	 * Get a set of all neighbours of this vector
+	 * at the given Manhattan distance.
+	 * 
+	 * @param distance
+	 * 			The Manhattan distance between this vector
+	 * 			and each neighbour.
+	 * 
+	 * @return	If the distance is zero, the resulting set
+	 * 			is a singleton consisting of this vector.
+	 * 			| if(distance == 0)
+	 * 			|   result.size() == 1
+	 * @return	If the distance is nonzero, the resulting set
+	 * 			contains (4 * distance) neighbouring vectors.
+	 * 			| else
+	 * 			|   result.size() == 4*distance
+	 * @return	Each neighbour in the resulting set has the given
+	 * 			distance as the Manhattan distance between
+	 * 			the neighbour and this vector.
+	 * 			| for each neighbour in result :
+	 * 			|   this.manhattanDistance(neighbour) == distance
+	 * 
+	 * @throws	IllegalArgumentException
+	 * 			If the given distance is strictly negative.
+	 * 			| distance < 0
+	 */
+	public Set<Vector> getNeighbours(long distance) throws IllegalArgumentException {
+		if (distance < 0)
+			throw new IllegalArgumentException("Distance to neighbour must be positive");
+		if (distance == 0)
+			return Collections.singleton(this);
+
+		Set<Vector> neighbours = new HashSet<Vector>();
+		long y = 0, dy = 1;
+		for (long x = -distance; x <= distance; ++x) {
+			// Add neighbours
+			if (y == 0) {
+				neighbours.add(this.add(x, 0));
+			} else {
+				neighbours.add(this.add(x, y));
+				neighbours.add(this.add(x, -y));
+			}
+			// Step Y
+			y += dy;
+			// Invert at central axis
+			if (y == distance)
+				dy *= -1;
+		}
+		return neighbours;
+	}
+
+	/**
+	 * @return	True if the given object reference equals this object reference.
+	 * 			| if (this == obj)
+	 * 			|   result == true
+	 * @return	False if the given object is not a vector.
+	 * 			| else if (getClass() != obj.getClass())
+	 * 			|   result == false
+	 * @return	Otherwise, true if and only if the respective coordinates are equal.
+	 * 			| else
+	 * 			|   let
+	 * 			|      other = (Vector) obj
+	 * 			|   result == (getX() == other.getX()) && (getY() == other.getY())
 	 */
 	@Override
-	public boolean equals(Object o) {
-		if (this == o)
+	public boolean equals(Object obj) {
+		if (this == obj)
 			return true;
-		if (!(o instanceof Vector))
+		if (getClass() != obj.getClass())
 			return false;
-		Vector v = (Vector) o;
-		return getX() == v.getX() && getY() == v.getY();
+		Vector other = (Vector) obj;
+		return getX() == other.getX() && getY() == other.getY();
 	}
 
 	@Override
 	public int hashCode() {
-		int h = new Long(getX()).hashCode();
-		h += new Long(getY()).hashCode() * 37;
-		return h;
+		final int prime = 31;
+		int result = 0;
+		result = prime * result + Long.valueOf(getX()).hashCode();
+		result = prime * result + Long.valueOf(getY()).hashCode();
+		return result;
 	}
 
 	@Override

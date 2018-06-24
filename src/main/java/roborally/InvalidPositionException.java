@@ -2,37 +2,50 @@ package roborally;
 
 import be.kuleuven.cs.som.annotate.*;
 
+/**
+ * A class of exceptions thrown when an invalid position was given
+ * to a piece in a game of RoboRally.
+ * 
+ * @author Mattias Buelens
+ * @author Thomas Goossens
+ * @version 2.0
+ */
 public class InvalidPositionException extends Exception {
 
-	public InvalidPositionException(Vector position) {
+	public InvalidPositionException(Board board, Vector position) {
+		this.board = board;
 		this.position = position;
 	}
 
-	public InvalidPositionException(long x, long y) {
-		this(new Vector(x, y));
+	public InvalidPositionException(Board board, long x, long y) {
+		this(board, new Vector(x, y));
 	}
 
+	/**
+	 * Get the invalid position.
+	 */
 	@Basic
 	@Immutable
-	public Vector getPosition() {
+	public final Vector getPosition() {
 		return position;
 	}
 
+	final Vector position;
+
+	/**
+	 * Get the board.
+	 */
+	@Basic
 	@Immutable
-	public long getX() {
-		if(getPosition() == null)
-			return 0;
-		return getPosition().getX();
-	}
-	
-	@Immutable
-	public long getY() {
-		if(getPosition() == null)
-			return 0;
-		return getPosition().getY();
+	public final Board getBoard() {
+		return board;
 	}
 
-	final Vector position;
+	final Board board;
+
+	public String getMessage() {
+		return String.format("Invalid position %s on %s", getPosition(), getBoard());
+	}
 
 	private static final long serialVersionUID = 1L;
 

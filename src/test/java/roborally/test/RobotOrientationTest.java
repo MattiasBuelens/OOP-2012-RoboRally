@@ -4,16 +4,21 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 
+import roborally.Board;
 import roborally.Orientation;
 import roborally.Robot;
+import roborally.Vector;
 
 public class RobotOrientationTest {
 
 	Robot robot;
+	Board board;
 
 	@Before
 	public void setUp() throws Exception {
-		robot = new Robot(3, 7, Orientation.RIGHT, 500);
+		board = new Board(10, 10);
+		robot = new Robot(Orientation.RIGHT, 500);
+		robot.placeOnBoard(board, new Vector(3, 7));
 	}
 
 	@Test
@@ -25,9 +30,6 @@ public class RobotOrientationTest {
 	public void setOrientation() {
 		robot.setOrientation(Orientation.UP);
 		assertEquals(Orientation.UP, robot.getOrientation());
-
-		robot.setOrientation(3);
-		assertEquals(Orientation.LEFT, robot.getOrientation());
 	}
 
 	@Test

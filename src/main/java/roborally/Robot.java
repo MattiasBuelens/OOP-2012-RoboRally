@@ -1,52 +1,66 @@
 package roborally;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
+
+import roborally.path.*;
+import roborally.util.SortedList;
+import be.kuleuven.cs.som.annotate.Basic;
+import be.kuleuven.cs.som.annotate.Model;
+import be.kuleuven.cs.som.annotate.Raw;
 
 /**
  * Represents a robot in a game of RoboRally.
  * 
+ * <p>A robot is a player-controlled piece.</p>
+ * 
+ * @invar	The robot's orientation is valid.
+ * 			| isValidOrientation(getOrientation())
+ * @invar	The robot's amount of energy is valid.
+ * 			| isValidEnergy(getEnergy())
+ * @invar	The robot has a proper set of possessions.
+ * 			| hasProperPossessions()
+ * 
  * @author Mattias Buelens
  * @author Thomas Goossens
- * @version 1.0
+ * @version 2.0
  */
-public class Robot implements IRobot {
+public class Robot extends Piece implements EnergyCarrier {
 
 	/*
 	 * Constructors
 	 */
 
 	/**
-	 * Create a new robot.
+	 * Create a new robot with the given orientation and energy.
+	 * 
+	 * @param orientation
+	 * 			The orientation for this new robot.
+	 * @param energy
+	 * 			The energy for this new robot.
 	 * 
 	 * @pre		The amount of energy must be valid.
 	 * 			| isValidEnergy(energy)
-	 * @post	| new.getX() == x
-	 * @post	| new.getY() == y
-	 * @post	| new.getOrientation() == orientation
-	 * @post	| new.getEnergy() == energy
-	 * @throws	InvalidPositionException
-	 * 			The given X- or Y-coordinate is invalid.
-	 * 			| !isValidX(x) || !isValidY(y)
-	 */
-	public Robot(long x, long y, Orientation orientation, double energy) throws InvalidPositionException {
-		setX(x);
-		setY(y);
-		setOrientation(orientation);
-		setEnergy(energy);
-	}
-
-	/**
-	 * Create a new robot.
 	 * 
-	 * @post	| new.getOrientation().getValue() == orientation
-	 * @see #Robot(long, long, Orientation, double)
+	 * @post	The move cost of the new robot equals 500 Ws.
+	 * 			| new.getMoveCost() == 500.0
+	 * @post	The turn cost of the new robot equals 100 Ws.
+	 * 			| new.getTurnCost() == 100.0
+	 * @post	The shoot cost of the new robot equals 1000 Ws.
+	 * 			| new.getShootCost() == 1000.0
+	 * @post	The maximum amount of energy of the new robot equals 20000 Ws.
+	 * 			| new.getMaximumEnergy() == 20000.0
+	 * @post	The new robot does not have any possessions yet.
+	 * 			| new.getNbPossessions() == 0
+	 * 
+	 * @effect	The new robot is initialized as a new piece.
+	 * 			| super()
+	 * @effect	The new robot's orientation is set to the given orientation.
+	 * 			| setOrientation(orientation)
+	 * @effect	The new robot's energy is set to the given amount of energy
+	 * 			if its valid for the new maximum energy.
+	 * 			| setEnergy(energy, new.getMaximumEnergy())
 	 */
-	public Robot(long x, long y, int orientation, double energy) throws InvalidPositionException {
-		setX(x);
-		setY(y);
+	public Robot(Orientation orientation, double energy) {
 		setOrientation(orientation);
 		setEnergy(energy);
 	}
@@ -55,135 +69,81 @@ public class Robot implements IRobot {
 	 * Position
 	 */
 
-	@Override
-	public long getX() {
-		return x;
-	}
-
-	@Override
-	public void setX(long x) throws InvalidPositionException {
-		if (!isValidX(x))
-			throw new InvalidPositionException(x, getY());
-		this.x = x;
-	}
-
 	/**
-	 * Check whether the given X-coordinate is valid for this robot.
-	 * 
-	 * @param x
-	 * 			The X-coordinate to validate.
-	 * 
-	 * @return	True if the X-coordinate is positive.
-	 * 			| result == (x >= 0)
+	 * @return	False if the other piece is not effective.
+	 * 			| if (piece == null)
+	 * 			|   result == false
+	 * @return	If the other piece is a robot, true if and only if
+	 * 			the other piece equals this robot.
+	 * 			| else if (piece instanceof Robot)
+	 * 			|   result == (piece == this)
+	 * @return	True if the other piece is an item.
+	 * 			| else if (piece instanceof Item)
+	 * 			|   result == true
+	 * @return	Otherwise, the call is dispatched to the other piece.
+	 * 			| else
+	 * 			|   result == piece.canSharePositionWith(this)
 	 */
 	@Override
-	public boolean isValidX(long x) {
-		return x >= 0;
-	}
+	public boolean canSharePositionWith(Piece piece) {
+		if (piece == null)
+			return false;
 
-	private long x;
+		// Different robots cannot share positions
+		if (piece instanceof Robot)
+			return (piece == this);
 
-	@Override
-	public long getY() {
-		return y;
-	}
+		// Robots can share their position with items
+		if (piece instanceof Item)
+			return true;
 
-	@Override
-	public void setY(long y) throws InvalidPositionException {
-		if (!isValidY(y))
-			throw new InvalidPositionException(getX(), y);
-		this.y = y;
-	}
-
-	/**
-	 * Check whether the given Y-coordinate is valid for this robot.
-	 * 
-	 * @param y
-	 * 			The Y-coordinate to validate.
-	 * 
-	 * @return	True if the Y-coordinate is positive.
-	 * 			| result == (y >= 0)
-	 */
-	@Override
-	public boolean isValidY(long y) {
-		return y >= 0;
-	}
-
-	private long y;
-
-	/**
-	 * Get the position of this robot.
-	 * 
-	 * @return	A vector representing the current position
-	 * 			of this robot.
-	 * 			| result.getX() == this.getX()
-	 * 			| result.getY() == this.getY()
-	 */
-	private Vector getPosition() {
-		return new Vector(getX(), getY());
-	}
-
-	/**
-	 * Set the position of this robot.
-	 * 
-	 * @param vector
-	 * 			The new position vector.
-	 * 
-	 * @post	The new position equals the given position.
-	 * 			| new.getX() == vector.getX()
-	 * 			| new.getY() == vector.getY()
-	 * @throws	InvalidPositionException
-	 *			If the given position is invalid for this robot.
-	 *			| !isValidPosition(vector)
-	 */
-	private void setPosition(Vector vector) throws InvalidPositionException {
-		if (!isValidPosition(vector))
-			throw new InvalidPositionException(vector);
-		setX(vector.getX());
-		setY(vector.getY());
-	}
-
-	/**
-	 * Check if the given vector is a valid position for this robot.
-	 * 
-	 * @param vector
-	 * 			The position vector to check.
-	 * 
-	 * @return	The given vector must be effective for it to be a valid position.
-	 * 			| if(vector == null)
-	 * 			|	result == false
-	 * @return	The X- and Y-coordinates must be valid for this robot.
-	 * 			| result == isValidX(vector.getX()) && isValidY(vector.getY())
-	 */
-	private boolean isValidPosition(Vector vector) {
-		return vector != null && isValidX(vector.getX()) && isValidY(vector.getY());
+		return piece.canSharePositionWith(this);
 	}
 
 	/*
 	 * Orientation
 	 */
 
-	@Override
+	/**
+	 * Get the orientation this robot is facing.
+	 */
+	@Basic
 	public Orientation getOrientation() {
 		return orientation;
 	}
 
-	@Override
+	/**
+	 * Set the orientation this robot is facing.
+	 * 
+	 * @param orientation
+	 * 			The new orientation.
+	 * 
+	 * @post	If the given orientation is valid,
+	 * 			the new orientation equals the given orientation.
+	 * 			If the given orientation is invalid,
+	 * 			the new orientation is set to facing up.
+	 * 			| if (isValidOrientation(orientation))
+	 * 			|	new.getOrientation() == orientation
+	 * 			| else
+	 * 			|	new.getOrientation() == Orientation.UP
+	 */
 	public void setOrientation(Orientation orientation) {
-		if (orientation == null)
+		if (!isValidOrientation(orientation))
 			orientation = Orientation.UP;
 		this.orientation = orientation;
 	}
 
 	/**
-	 * Set the orientation of this robot.
-	 * @post	The new orientation is the orientation corresponding
-	 * 			with the given integer representation.
-	 * 			| new.getOrientation().getValue() == Math.abs(orientation) % Orientation.values().length
+	 * Check whether the given orientation is valid for this robot.
+	 *
+	 * @param orientation
+	 *			The orientation to validate.
+	 *
+	 * @return	True if the orientation is effective.
+	 *			| result == (orientation != null)
 	 */
-	public void setOrientation(int orientation) {
-		orientation = Math.abs(orientation) % Orientation.values().length;
-		setOrientation(Orientation.getByValue(orientation));
+	public boolean isValidOrientation(Orientation orientation) {
+		return orientation != null;
 	}
 
 	private Orientation orientation;
@@ -192,32 +152,76 @@ public class Robot implements IRobot {
 	 * Energy
 	 */
 
+	@Basic
 	@Override
 	public double getEnergy() {
 		return energy;
 	}
 
+	/**
+	 * Set the amount of energy stored by this robot.
+	 * 
+	 * @param energy
+	 * 			The new amount of energy.
+	 * 
+	 * @effect	The robot's energy is set for this robot's maximum energy.
+	 * 			| setEnergy(energy, getMaximumEnergy())
+	 * @see #setEnergy(double, double)
+	 */
 	@Override
-	public void setEnergy(double energy) {
-		assert isValidEnergy(energy);
+	public void setEnergy(double energy) throws IllegalStateException {
+		setEnergy(energy, getMaximumEnergy());
+	}
+
+	/**
+	 * Set the amount of energy stored by this robot
+	 * for the given maximum amount of energy.
+	 * 
+	 * @param energy
+	 * 			The new amount of energy.
+	 * @param maxEnergy
+	 * 			The maximum amount of energy.
+	 * 
+	 * @pre		The amount of energy must be valid.
+	 * 			| isValidEnergy(energy, maxEnergy)
+	 * @post	The new amount of energy equals the given amount.
+	 * 			| new.getEnergy() == energy
+	 * @throws	IllegalStateException
+	 * 			If the robot is terminated.
+	 * 			| isTerminated()
+	 * @see #isValidEnergy(double, double)
+	 */
+	@Model
+	void setEnergy(double energy, double maxEnergy) throws IllegalStateException {
+		if (isTerminated())
+			throw new IllegalStateException("Robot must not be terminated.");
+
+		assert isValidEnergy(energy, maxEnergy);
 		this.energy = energy;
 	}
 
 	/**
 	 * Check whether the given amount of energy is a valid amount for this robot.
 	 * 
+	 * @param energy
+	 * 			The amount of energy to validate.
+	 * 
 	 * @return	True if the amount of energy is valid for the maximum amount
 	 * 			of energy of this robot, false otherwise.
 	 * 			| result == isValidEnergy(energy, getMaximumEnergy())
 	 * @see #isValidEnergy(double, double)
 	 */
-	@Override
 	public boolean isValidEnergy(double energy) {
 		return isValidEnergy(energy, getMaximumEnergy());
 	}
 
 	/**
 	 * Check whether the given amount of energy is valid.
+	 * 
+	 * @param energy
+	 * 			The amount of energy to validate.
+	 * @param maximumEnergy
+	 * 			The maximum amount of energy.
 	 * 
 	 * @return	True if the amount of energy is positive and does not exceed
 	 * 			the given maximum amount of energy, false otherwise.
@@ -229,23 +233,33 @@ public class Robot implements IRobot {
 
 	private double energy;
 
+	@Basic
 	@Override
 	public double getMaximumEnergy() {
 		return maximumEnergy;
 	}
 
 	/**
-	 * Checks whether the given maximum energy amount is valid for this robot.
-	 * @return	True if the given maximum amount is positive.
-	 * 			| result == (maximumEnergy >= 0)
+	 * Check whether the given maximum energy amount is valid for this robot.
+	 * 
+	 * @return	True if the given maximum amount is strictly positive.
+	 * 			| result == (maximumEnergy > 0)
 	 */
 	public static boolean isValidMaximumEnergy(double maximumEnergy) {
-		return maximumEnergy >= 0;
+		return maximumEnergy > 0;
 	}
 
 	private final double maximumEnergy = 20000;
 
-	@Override
+	/**
+	 * Get the amount of energy of this robot as a fraction of the maximum energy amount.
+	 * 
+	 * @return	The result is the amount of energy divided by the maximum energy amount.
+	 * 			This double division is precise to at least two decimals.
+	 * 			| result == getEnergy() / getMaximumEnergy()
+	 * @see #getEnergy()
+	 * @see #getMaximumEnergy()
+	 */
 	public double getEnergyFraction() {
 		assert isValidEnergy(getEnergy());
 		assert isValidMaximumEnergy(getMaximumEnergy());
@@ -254,26 +268,428 @@ public class Robot implements IRobot {
 
 	@Override
 	public void recharge(double amount) {
-		assert amount >= 0;
+		assert canRecharge(amount);
 		setEnergy(getEnergy() + amount);
+	}
+
+	/**
+	 * @return	False if this robot is terminated.
+	 * 			| if (isTerminated())
+	 * 			|   result == false
+	 * @return	False if the extra energy amount is negative.
+	 * 			| if (amount < 0)
+	 * 			|   result == false
+	 * @return	Otherwise, true if and only if the new amount of energy is valid.
+	 * 			| else
+	 * 			|   result == isValidEnergy(getEnergy() + amount)
+	 */
+	@Override
+	public boolean canRecharge(double amount) {
+		if (isTerminated())
+			return false;
+		if (amount < 0)
+			return false;
+		return isValidEnergy(getEnergy() + amount);
 	}
 
 	@Override
 	public void drain(double amount) {
-		assert amount >= 0;
+		assert canDrain(amount);
 		setEnergy(getEnergy() - amount);
+	}
+
+	/**
+	 * @return	False if this robot is terminated.
+	 * 			| if (isTerminated())
+	 * 			|   result == false
+	 * @return	False if the extra energy amount is negative.
+	 * 			| if (amount < 0)
+	 * 			|   result == false
+	 * @return	Otherwise, true if and only if the new amount of energy is valid.
+	 * 			| else
+	 * 			|   result == isValidEnergy(getEnergy() - amount)
+	 */
+	@Override
+	public boolean canDrain(double amount) {
+		if (isTerminated())
+			return false;
+		if (amount < 0)
+			return false;
+		return isValidEnergy(getEnergy() - amount);
+	}
+
+	/**
+	 * Transfer the given amount of energy from this robot
+	 * to the given receiving carrier.
+	 * 
+	 * <p>This operation is illegal for robots and will always
+	 * throw an exception.
+	 * 
+	 * @throws	UnsupportedOperationException
+	 * 			Always, since transferring energy from a robot
+	 * 			is an illegal operation.
+	 */
+	@Override
+	public void transfer(EnergyCarrier receivingCarrier, double amount) throws UnsupportedOperationException {
+		assert canTransfer(receivingCarrier, amount);
+		throw new UnsupportedOperationException("Robots cannot transfer energy to other energy carriers.");
+	}
+
+	/**
+	 * @return	Always false, since transferring energy from a robot
+	 * 			is an illegal operation.
+	 * 			| result == false
+	 */
+	@Override
+	public boolean canTransfer(EnergyCarrier receivingCarrier, double amount) {
+		return false;
+	}
+
+	/*
+	 * Possessions
+	 */
+
+	/**
+	 * The possessions of this robot are stored as a sorted list
+	 * of items, sorted on their weight in descending order.
+	 */
+	private List<Item> possessions = new SortedList<Item>(Collections.reverseOrder(new ItemWeightComparator()));
+
+	/**
+	 * Get the number of possessions of this robot.
+	 */
+	@Basic
+	@Raw
+	public int getNbPossessions() {
+		return possessions.size();
+	}
+
+	/**
+	 * Get the <i>index</i>-th heaviest possession of this robot.
+	 * That is, get the possession which has a weight greater or
+	 * equal to the weight of all but <code>(index - 1)</code> possessions.
+	 * 
+	 * @param index
+	 * 			The index of the possession to return.
+	 * 
+	 * @throws	IndexOutOfBoundsException
+	 * 			If the given index is not positive or
+	 * 			it exceeds the number of possessions of this robot.
+	 * 			| (index < 1) || (index > getNbPossessions())
+	 */
+	@Basic
+	@Raw
+	public Item getPossessionAt(int index) throws IndexOutOfBoundsException {
+		return possessions.get(index - 1);
+	}
+
+	/**
+	 * Check whether this robot can have the given
+	 * item as one of its possessions.
+	 * 
+	 * @param item
+	 * 			The item to check.
+	 * 
+	 * @return	True if and only if this robot is not
+	 * 			terminated and the given item is effective.
+	 * 			| result == (!isTerminated() && item != null)
+	 */
+	@Raw
+	public boolean canHaveAsPossession(Item item) {
+		return !isTerminated() && item != null;
+	}
+
+	/**
+	 * Check whether this robot has a proper set of possessions.
+	 * 
+	 * @return	True if and only if this robot can have each of
+	 * 			its possessions and if none of its possessions
+	 * 			are placed on a board.
+	 * 			| for each index in 1..getNbPossessions() :
+	 * 			|   canHaveAsPossession(getPossessionAt(index))
+	 * 			|    && !getPossessionAt(index).isPlaced()
+	 */
+	public boolean hasProperPossessions() {
+		for (Item item : possessions) {
+			if (!canHaveAsPossession(item))
+				return false;
+			if (item.isPlaced())
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Get a set of all the possessions of this robot.
+	 * 
+	 * @return	The size of the resulting set is equal to
+	 * 			the number of possessions of this robot.
+	 * 			| result.size() == getNbPossessions()
+	 * @return	The resulting set contains all possessions of this robot.
+	 * 			| for each index in 1..getNbPossessions() :
+	 * 			|   result.contains(getPossessionAt(index))
+	 */
+	public Set<Item> getPossessions() {
+		return new HashSet<Item>(possessions);
+	}
+
+	/**
+	 * Get a set of all the possessions of this robot
+	 * which are instances of a given type.
+	 * 
+	 * @param possessionType
+	 * 			The type of possessions to return.
+	 * 
+	 * @return	For each possession of this robot, if and only if it is
+	 * 			an instance of the given type, it is contained in the resulting set.
+	 * 			| for each index in 1..getNbPossessions() :
+	 * 			|   result.contains(getPossessionAt(index))
+	 * 			|     == possessionType.isInstance(getPossessionAt(index))
+	 */
+	public <T extends Item> Set<T> getPossessions(Class<T> possessionType) {
+		Set<T> typedPieces = new HashSet<T>();
+		for (Item item : possessions) {
+			if (possessionType.isInstance(item)) {
+				typedPieces.add(possessionType.cast(item));
+			}
+		}
+		return typedPieces;
+	}
+
+	/**
+	 * Check whether this robot has the given item as one
+	 * of its possessions.
+	 * 
+	 * @param item
+	 * 			The item to check.
+	 * 
+	 * @return	True if and only if this robot has the given item
+	 * 			as one of its possessions at some index.
+	 * 			| result ==
+	 * 			|   for some index in 1..getNbPossessions() :
+	 * 			|      getPossessionAt(index).equals(item)
+	 */
+	@Raw
+	public boolean hasAsPossession(Item item) {
+		return possessions.contains(item);
+	}
+
+	/**
+	 * Pick up a given item and add it as a possession.
+	 * 
+	 * @param item
+	 * 			The item to pick up.
+	 * 
+	 * @effect	The item is removed from the board.
+	 * 			| item.removeFromBoard()
+	 * @effect	The item is added as one of this robot's possessions.
+	 * 			| addAsPossession(item)
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot is not placed on a board.
+	 * 			| !isPlaced()
+	 * @throws	IllegalStateException
+	 * 			If this robot cannot have the given item as
+	 * 			one of its possessions.
+	 * 			| !canHaveAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If this robot already has the given item as
+	 * 			one of its possessions.
+	 * 			| hasAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If the given item is terminated.
+	 * 			| item.isTerminated()
+	 * @throws	IllegalArgumentException
+	 * 			If this robot does not share its position
+	 * 			with the given item.
+	 * 			| !sharesPositionWith(item)
+	 */
+	public void pickUp(Item item) throws IllegalStateException, IllegalArgumentException {
+		if (!isPlaced())
+			throw new IllegalStateException("Cannot pick up items when this robot is not placed.");
+		if (!canHaveAsPossession(item))
+			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
+		if (hasAsPossession(item))
+			throw new IllegalArgumentException("Robot already possesses this item.");
+		if (item.isTerminated())
+			throw new IllegalArgumentException("Cannot pick up terminated items.");
+		if (!sharesPositionWith(item))
+			throw new IllegalArgumentException("Robot and item must be located on the same board at the same position.");
+
+		item.removeFromBoard();
+		addAsPossession(item);
+	}
+
+	/**
+	 * Drop a given item and remove it as one of this robot's possessions.
+	 * 
+	 * @param item
+	 * 			The item to drop.
+	 * 
+	 * @effect	The item is placed on the same board as
+	 * 			this robot at its current position.
+	 * 			| item.placeOnBoard(getBoard(), getPosition())
+	 * @effect	The item is removed as one of this robot's possessions.
+	 * 			| removeAsPossession(item)
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot cannot have the given item as
+	 * 			one of its possessions.
+	 * 			| !canHaveAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If this robot does not have the given item as
+	 * 			one of its possessions.
+	 * 			| !hasAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If the given item is terminated.
+	 * 			| item.isTerminated()
+	 */
+	public void drop(Item item) throws IllegalStateException, IllegalArgumentException {
+		if (!canHaveAsPossession(item))
+			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
+		if (!hasAsPossession(item))
+			throw new IllegalArgumentException("Robot does not possess this item.");
+		if (item.isTerminated())
+			throw new IllegalArgumentException("Cannot drop terminated items.");
+
+		removeAsPossession(item);
+		if (isPlaced()) {
+			try {
+				item.placeOnBoard(getBoard(), getPosition());
+			} catch (InvalidPositionException cannotHappen) {
+				// Cannot happen since this robot has a valid position
+			}
+		}
+	}
+
+	/**
+	 * Use the given possession.
+	 * 
+	 * @param item
+	 * 			The possession to use.
+	 *
+	 * @effect	If the given possession is not terminated,
+	 * 			the item is used on this robot.
+	 * 			| if(!item.isTerminated())
+	 * 			|   item.use(this)
+	 * @effect	If the given possession is terminated,
+	 * 			the possession is removed as one of
+	 * 			this robot's possessions.
+	 * 			| if(item.isTerminated())
+	 * 			|   removeAsPossession(item) 
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot cannot have the given possession as
+	 * 			one of its possessions.
+	 * 			| !canHaveAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If this robot does not have the given possession as
+	 * 			one of its possessions.
+	 * 			| !hasAsPossession(item)
+	 */
+	public void use(Item item) throws IllegalStateException, IllegalArgumentException {
+		if (!canHaveAsPossession(item))
+			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
+		if (!hasAsPossession(item))
+			throw new IllegalArgumentException("Robot does not possess this item.");
+
+		if (item.isTerminated()) {
+			removeAsPossession(item);
+		} else {
+			item.use(this);
+		}
+	}
+
+	/**
+	 * Add an item as one of this robot's possessions.
+	 * 
+	 * @param item
+	 * 			The item to add.
+	 * 
+	 * @post	The number of possessions of this robot
+	 * 			is incremented by one.
+	 * 			| new.getNbPossessions() == getNbPossessions() + 1
+	 * @post	This robot now has the given item as
+	 * 			one of its possessions.
+	 * 			| new.hasAsPossession(item)
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot cannot have the given item as
+	 * 			one of its possessions.
+	 * 			| !canHaveAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If this robot already has the given item as
+	 * 			one of its possessions.
+	 * 			| hasAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If the given item is placed on a board.
+	 * 			| item.isPlaced()
+	 */
+	@Model
+	void addAsPossession(Item item) throws IllegalStateException, IllegalArgumentException {
+		if (!canHaveAsPossession(item))
+			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
+		if (hasAsPossession(item))
+			throw new IllegalArgumentException("Robot already possesses this item.");
+		if (item.isPlaced())
+			throw new IllegalArgumentException("Cannot add placed items as possessions.");
+
+		possessions.add(item);
+	}
+
+	/**
+	 * Remove an item as one of this robot's possessions.
+	 * 
+	 * @param item
+	 * 			The item to remove.
+	 * 
+	 * @post	The number of possessions of this robot
+	 * 			is decremented by one.
+	 * 			| new.getNbPossessions() == getNbPossessions() - 1
+	 * @post	This robot no longer has the given item as
+	 * 			one of its possessions.
+	 * 			| !new.hasAsPossession(item)
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot cannot have the given item as
+	 * 			one of its possessions.
+	 * 			| !canHaveAsPossession(item)
+	 * @throws	IllegalArgumentException
+	 * 			If this robot does not have the given item as
+	 * 			one of its possessions.
+	 * 			| !hasAsPossession(item)
+	 */
+	@Model
+	void removeAsPossession(Item item) throws IllegalStateException, IllegalArgumentException {
+		if (!canHaveAsPossession(item))
+			throw new IllegalStateException("Robot must not be terminated and item must be effective.");
+		if (!hasAsPossession(item))
+			throw new IllegalArgumentException("Robot does not possess this item.");
+
+		possessions.remove(item);
 	}
 
 	/*
 	 * Turning and moving
 	 */
 
-	@Override
-	public void move() throws InvalidPositionException {
+	/**
+	 * Move this robot one step forward in the direction it's facing.
+	 * 
+	 * @pre		The robot must have enough energy to move.
+	 * 			| canMove()
+	 * @effect	The robot moves to the next position on the board.
+	 * 			| moveOnBoard(getNextPosition())
+	 * @effect	The energy of this robot is decreased with
+	 * 			the energy cost of one step.
+	 * 			| drain(getStepCost())
+	 * @see #canMove()
+	 */
+	public void move() throws IllegalStateException, IllegalArgumentException {
 		assert canMove();
 
-		Vector newPosition = getNextPosition();
-		setPosition(newPosition);
+		Vector nextPosition = getNextPosition();
+		moveOnBoard(nextPosition);
 		drain(getStepCost());
 	}
 
@@ -281,34 +697,56 @@ public class Robot implements IRobot {
 	 * Get the next position this robot would move to
 	 * when moving one step forward.
 	 * 
-	 * @return	The current position of the robot, shifted by
-	 * 			one step in its current orientation.
-	 * @note	This method is not responsible for verifying
-	 * 			the validity of the new position.
-	 * 			<p>The calling method can check this manually
-	 * 			by using {@link #isValidPosition(Vector)} or
-	 * 			catch an {@link InvalidPositionException} when
-	 * 			calling {@link #setPosition(Vector)}.
+	 * <p>If the robot is not placed or the next position is invalid,
+	 * null is returned.
+	 * 
+	 * @return	If this robot is placed, the next position is retrieved
+	 * 			from this robot's board with its current position and orientation.
+	 * @return	| if (isPlaced())
+	 * 			|   result == getBoard().getNextPosition(getPosition(), getOrientation())
+	 * @return	If this robot is not placed on any board, null is returned.
+	 * 			| if (!isPlaced())
+	 * 			|   result == null
 	 */
-	private Vector getNextPosition() {
-		Vector delta = getOrientation().getVector();
-		Vector newPosition = getPosition().add(delta);
-		return newPosition;
+	public Vector getNextPosition() {
+		if (!isPlaced())
+			return null;
+		return getBoard().getNextPosition(getPosition(), getOrientation());
 	}
 
-	@Override
+	/**
+	 * Check whether this robot has enough energy to move one step forward.
+	 * 
+	 * @return	True if the energy cost of one step can be drained from this robot.
+	 * 			| result == canDrain(getStepCost())
+	 * @see #getStepCost()
+	 */
 	public boolean canMove() {
-		return getEnergy() >= getStepCost();
+		return canDrain(getStepCost());
 	}
 
-	@Override
+	/**
+	 * Get the energy cost for one step forward.
+	 */
+	@Basic
 	public double getStepCost() {
 		return stepCost;
 	}
 
 	private static final double stepCost = 500;
 
-	@Override
+	/**
+	 * Turn this robot clockwise.
+	 * 
+	 * @pre		The robot must have enough energy to turn.
+	 * 			| canTurn()
+	 * @effect	The orientation of this robot is turned clockwise.
+	 * 			| setOrientation(getOrientation().turnClockwise())
+	 * @effect	The energy of this robot is decreased with
+	 * 			the energy cost of one turn.
+	 * 			| drain(getTurnCost())
+	 * @see #canTurn()
+	 */
 	public void turnClockwise() {
 		assert canTurn();
 
@@ -316,7 +754,18 @@ public class Robot implements IRobot {
 		drain(getTurnCost());
 	}
 
-	@Override
+	/**
+	 * Turn this robot counterclockwise.
+	 * 
+	 * @pre		The robot must have enough energy to turn.
+	 * 			| canTurn()
+	 * @effect	The orientation of this robot is turned counterclockwise.
+	 * 			| setOrientation(getOrientation().turnCounterClockwise())
+	 * @effect	The energy of this robot is decreased with
+	 * 			the energy cost of one turn.
+	 * 			| drain(getTurnCost())
+	 * @see #canTurn()
+	 */
 	public void turnCounterClockwise() {
 		assert canTurn();
 
@@ -324,413 +773,405 @@ public class Robot implements IRobot {
 		drain(getTurnCost());
 	}
 
-	@Override
+	/**
+	 * Check whether this robot has enough energy to turn once.
+	 * 
+	 * @return	True if the energy cost of one turn can be drained from this robot.
+	 * 			| result == canDrain(getTurnCost())
+	 * @see #getTurnCost()
+	 */
 	public boolean canTurn() {
-		return getEnergy() >= getTurnCost();
+		return canDrain(getTurnCost());
 	}
 
-	@Override
+	/**
+	 * Get the energy cost for one turn.
+	 */
+	@Basic
 	public double getTurnCost() {
 		return turnCost;
 	}
 
 	private static final double turnCost = 100;
 
-	@Override
-	public double getEnergyRequiredToReach(long x, long y) throws InvalidPositionException {
-		return getEnergyRequiredToReach(new Vector(x, y));
-	}
-
-	private double getEnergyRequiredToReach(Vector position) throws InvalidPositionException {
+	/**
+	 * Get the minimal amount of energy required to reach a given position.
+	 * 
+	 * @param position
+	 * 			The position to reach.
+	 * 
+	 * @return	The actual cost to reach the given position,
+	 * 			as found by running the A* path finding algorithm
+	 * 			for minimal robot energy costs.
+	 * 			| result == new MinimalCostAStar(this, position).getCost()
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot is not placed on any board.
+	 * 			| !isPlaced()
+	 * @throws	InvalidPositionException
+	 * 			If the given position is not valid on this board.
+	 * 			| !isValidPosition(position)
+	 * @throws	UnreachablePositionException
+	 * 			If this robot cannot be reached by the robot,
+	 * 			regardless of its energy.
+	 * 			| !isReachable(position)
+	 */
+	public double getMinimalCostToReach(Vector position) throws IllegalStateException, InvalidPositionException,
+			UnreachablePositionException {
+		if (!isPlaced())
+			throw new IllegalStateException("Robot must be placed and not terminated.");
 		if (!isValidPosition(position))
-			throw new InvalidPositionException(position);
+			throw new InvalidPositionException(getBoard(), position);
+		if (!canMoveTo(position))
+			throw new UnreachablePositionException(this, position);
 
-		// Position of target relative to this robot's position
-		Vector deltaTarget = position.subtract(getPosition());
-		// Amount of steps required to reach the target
-		long amountOfSteps = deltaTarget.manhattanDistance();
-
-		// New orientation when moved to target
-		Orientation newOrientation = getOrientationWhenMovedTo(position);
-		// Amount of turns required to turn to new orientation
-		long amountOfTurns = newOrientation.getDifference(getOrientation());
-
-		// Calculate energy cost
-		return amountOfTurns * getTurnCost() + amountOfSteps * getStepCost();
-	}
-
-	@Override
-	public void moveTo(long x, long y) throws InvalidPositionException {
-		moveTo(new Vector(x, y));
-	}
-
-	private void moveTo(Vector position) throws InvalidPositionException {
-		assert canReach(position);
-
-		double energy = getEnergyRequiredToReach(position);
-		Orientation orientation = getOrientationWhenMovedTo(position);
-
-		try {
-			setPosition(position);
-		} catch (InvalidPositionException e) {
-			// Already asserted in canReach()
-		}
-		setOrientation(orientation);
-		drain(energy);
-	}
-
-	@Override
-	public boolean canReach(long x, long y) throws InvalidPositionException {
-		return canReach(new Vector(x, y));
-	}
-
-	private boolean canReach(Vector position) throws InvalidPositionException {
-		return getEnergyRequiredToReach(position) <= getEnergy();
-	}
-
-	@Override
-	public Orientation getOrientationWhenMovedTo(long x, long y) throws InvalidPositionException {
-		return getOrientationWhenMovedTo(new Vector(x, y));
-	}
-
-	private Orientation getOrientationWhenMovedTo(Vector position) throws InvalidPositionException {
-		if (!isValidPosition(position))
-			throw new InvalidPositionException(position);
-
-		// Position of target relative to this robot's position
-		Vector deltaTarget = position.subtract(getPosition());
-		Orientation orientation = getOrientation();
-
-		// Vector of a step in this robot's orientation
-		Vector deltaOrientation = orientation.getVector();
-
-		// Retain orientation when not moving
-		if (deltaTarget.equals(Vector.ZERO))
-			return orientation;
-
-		// Check if only moving in one direction
-		if (deltaTarget.isHorizontal() || deltaTarget.isVertical()) {
-			// Orient in same direction
-			orientation = Orientation.fromVector(deltaTarget);
-		} else if (deltaOrientation.isHorizontal()) {
-			// Facing left or right
-			if (deltaOrientation.isLeft() == deltaTarget.isLeft()) {
-				// Step horizontally first, end vertically
-				orientation = deltaTarget.isUp() ? Orientation.UP : Orientation.DOWN;
-			} else {
-				// Step vertically first, end horizontally
-				orientation = deltaTarget.isLeft() ? Orientation.LEFT : Orientation.RIGHT;
-			}
-		} else {
-			// Facing up or down
-			if (deltaOrientation.isUp() == deltaTarget.isUp()) {
-				// Step vertically first, end horizontally
-				orientation = deltaTarget.isLeft() ? Orientation.LEFT : Orientation.RIGHT;
-			} else {
-				// Step horizontally first, end vertically
-				orientation = deltaTarget.isUp() ? Orientation.UP : Orientation.DOWN;
-			}
-		}
-		return orientation;
-	}
-
-	@Override
-	public void moveNextTo(IRobot otherRobot) {
-		try {
-			moveNextTo((Robot) otherRobot);
-		} catch (InvalidPositionException e) {
-			// Other robot must be valid
-			// so this exception cannot occur
-		}
-	}
-
-	private void moveNextTo(Robot otherRobot) throws InvalidPositionException {
-		// Check if this robot is trying to move next to itself
-		if (this == otherRobot)
-			return;
-
-		// Check if robots occupy the same position
-		if (getPosition().equals(otherRobot.getPosition())) {
-			resolveConflictingPositions(otherRobot);
-			return;
-		}
-
-		// Get the position of the other robot relative to this robot
-		Vector delta = otherRobot.getPosition().subtract(getPosition());
-
-		// Initial values
-		Vector bestPosition = getPosition();
-		Vector bestOtherPosition = otherRobot.getPosition();
-		long minimumDistance = delta.manhattanDistance();
-		double minimumCost = 0;
-
-		// Build paths to walk
-		List<List<Vector>> paths = buildPathsTo(otherRobot.getPosition());
-
-		for (List<Vector> path : paths) {
-			// Let this robot walk forward
-			ListIterator<Vector> it = path.listIterator();
-			Vector walkerPosition;
-			int walkerIndex = 0;
-			while (it.hasNext() && canReach(walkerPosition = it.next())) {
-				// Get the remaining walkable positions along the path
-				List<Vector> remainingPath = path.subList(walkerIndex + 1, path.size());
-
-				// Let the other robot walk backwards along this path
-				Vector otherPosition = otherRobot.getFirstReachablePosition(remainingPath);
-				// If no position is reachable, stay at initial position
-				if (otherPosition == null) {
-					otherPosition = otherRobot.getPosition();
-				}
-
-				// Determine the distance and cost of this situation
-				long distance = otherPosition.subtract(walkerPosition).manhattanDistance();
-				double cost = getEnergyRequiredToReach(walkerPosition)
-						+ otherRobot.getEnergyRequiredToReach(otherPosition);
-
-				// If distance is lower or cost is lower for same distance,
-				// save as current minimum
-				if (distance < minimumDistance || (distance == minimumDistance && cost < minimumCost)) {
-					bestPosition = walkerPosition;
-					bestOtherPosition = otherPosition;
-					minimumDistance = distance;
-					minimumCost = cost;
-				}
-
-				// Move to next
-				walkerIndex = it.nextIndex();
-			}
-		}
-
-		// Move to best positions
-		moveTo(bestPosition);
-		otherRobot.moveTo(bestOtherPosition);
+		// Run A* for minimal cost finding
+		return new MinimalCostAStar(this, position).getCost();
 	}
 
 	/**
-	 * Resolve the conflict when two robots occupy the same position.
+	 * Check whether this robot could reach the given position
+	 * if given enough energy.
 	 * 
-	 * One of the robots makes one step to a valid new position
-	 * (making turns if necessary), if it has sufficient energy
-	 * to do so. If none of the robots has enough energy, nothing
-	 * happens and the conflict remains unresolved.
+	 * @param position
+	 * 			The position to reach.
+	 * 
+	 * @return	False if the given position is not valid
+	 * 			on this board.
+	 * 			| if (!isValidPosition(position))
+	 * 			|   result == false
+	 * @return	False if this robot cannot move to the given position.
+	 * 			| else if (!canMoveTo(position))
+	 * 			|   result == false
+	 * @return	Otherwise, true if and only if there exists a sequence
+	 * 			of vectors such that all of the following is true:
+	 * 			<ul>
+	 * 			<li>the first vector equals this robot's position;</li>
+	 * 			<li>the last vector equals the given position;</li>
+	 * 			<li>for each vector between the first and last vector in the sequence:
+	 * 			<ul>
+	 * 			<li>this robot can move to the vector;</li>
+	 * 			<li>the Manhattan distance to the previous vector equals one;</li>
+	 * 			<li>the Manhattan distance to the next vector equals one.</li>
+	 * 			</ul>
+	 * 			</ul>
+	 * 			| else
+	 * 			|   result == (for some path:Vector[] :
+	 * 			|      path[0].equals(this.getPosition())
+	 * 			|       && path[path.length-1].equals(position)
+	 * 			|       && for each i in 1..path.length-2 :
+	 * 			|            this.canMoveTo(path[i])
+	 * 			|            && path[i-1].manhattanDistance(path[i]) == 1)
+	 * 			|            && path[i+1].manhattanDistance(path[i]) == 1)
+	 * 			|   )
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot is not placed on any board.
+	 * 			| !isPlaced()
+	 */
+	public boolean isReachable(Vector position) throws IllegalStateException {
+		try {
+			return getMinimalCostToReach(position) >= 0;
+		} catch (InvalidPositionException e) {
+			return false;
+		} catch (UnreachablePositionException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Check whether this robot can reach the given position
+	 * with its current amount of energy.
+	 * 
+	 * @param position
+	 * 			The position to reach.
+	 * 
+	 * @return	False if the given position cannot be reached
+	 * 			by the robot, regardless of its energy.
+	 * 			| if (!isReachable(position))
+	 * 			|   result == false
+	 * @return	Otherwise, true if and only if this robot has
+	 * 			sufficient energy to reach the given position.
+	 * 			| else
+	 * 			|   result == canDrain(getMinimalCostToReach(position))
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot is not placed on any board.
+	 * 			| !isPlaced()
+	 */
+	public boolean canReach(Vector position) throws IllegalStateException {
+		try {
+			return canDrain(getMinimalCostToReach(position));
+		} catch (InvalidPositionException e) {
+			return false;
+		} catch (UnreachablePositionException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Move this robot to the given node.
+	 * 
+	 * @param node
+	 * 			The node to move to.
+	 * 
+	 * @pre		This robot must not be terminated
+	 * 			and must be placed on a board.
+	 * 			| !isTerminated() && isPlaced()
+	 * @pre		The given node must be effective
+	 * 			and apply to this robot.
+	 * 			| node != null && node.getRobot() == this
+	 * @pre		This robot must be able to move
+	 * 			to the node's position.
+	 * 			| canMoveTo(node.getPosition())
+	 * 
+	 * @effect	The energy of this robot is decreased with
+	 * 			the energy cost to reach the node.
+	 * 			| drain(node.getG())
+	 * @effect	The robot has moved to the node's position.
+	 * 			| moveOnBoard(node.getPosition())
+	 * @effect	The robot's orientation is set to
+	 * 			the node's orientation.
+	 * 			| setOrientation(node.getOrienation())
+	 */
+	@Model
+	void moveTo(RobotNode node) {
+		assert !isTerminated() && isPlaced();
+		assert node != null && node.getRobot() == this;
+		assert canMoveTo(node.getPosition());
+
+		// Drain the energy cost
+		drain(node.getG());
+		// Move on board
+		moveOnBoard(node.getPosition());
+		// Set orientation
+		setOrientation(node.getOrientation());
+	}
+
+	/**
+	 * Move this robot and the given other robot as close as possible
+	 * to each other, taking into account energy restrictions
+	 * of both robots.
 	 * 
 	 * @param otherRobot
-	 * 			The conflicting robot.
-	 * @pre		The robots are not equal.
-	 * 			| this != otherRobot
-	 * @pre		Both robots occupy the same position.
-	 * 			| this.getPosition().equals(otherRobot.getPosition())
-	 * @throws	InvalidPositionException
-	 * 			This should not be thrown when the other robot
-	 * 			conforms to its invariants.
+	 * 			The other robot.
+	 * 
+	 * @note	Let <code>thisReachable</code> be the set of
+	 * 			all reachable nodes by this robot, that is the position
+	 * 			of the node is reachable by this robot and the node's cost
+	 * 			equals the cost for this robot to reach that position.
+	 * 			Let <code>otherReachable</code> be the set of
+	 * 			all reachable nodes by the other robot.
+	 * 			| let
+	 * 			|   thisReachable = {thisNode:RobotNode
+	 * 			|      | this.canReach(thisNode.getPosition())
+	 * 			|         && thisNode.getG() == this.getMinimalCostToReach(thisNode.getPosition())
+	 * 			|   }
+	 * 			|   otherReachable = {otherNode:RobotNode
+	 * 			|      | otherRobot.canReach(otherNode.getPosition())
+	 * 			|         && otherNode.getG() == otherRobot.getMinimalCostToReach(otherNode.getPosition())
+	 * 			|   }
+	 * 
+	 * @effect	One node is selected from each of these sets forming a
+	 * 			pair of solutions, such that every other pair of nodes
+	 * 			from these sets:
+	 * 			<ul>
+	 * 			<li>has the same position, thus a Manhattan distance of zero;</li>
+	 * 			<li>or has a Manhattan distance greater than the distance
+	 * 			between the solution nodes;</li>
+	 * 			<li>or has a total energy cost greater than or equal to
+	 * 			the total energy cost of the solution nodes.</li>
+	 * 			</ul>
+	 * 			The two robots then move to their respective solution nodes.
+	 * 			| let
+	 * 			|   bestThisNode:RobotNode, bestOtherNode:RobotNode
+	 * 			|
+	 * 			| for each thisNode in thisReachable :
+	 * 			|   for each otherNode in otherReachable :
+	 * 			|      thisNode.getPosition().equals(otherNode.getPosition())
+	 * 			|       || thisNode.getPosition().manhattanDistance(otherNode.getPosition())
+	 * 			|           > bestThisNode.getPosition().manhattanDistance(bestOtherNode.getPosition())
+	 * 			|       || thisNode.getG() + otherNode.getG()
+	 * 			|           >= bestThisNode.getG() + bestOtherNode.getG()
+	 * 			|
+	 * 			| this.moveTo(bestThisNode)
+	 * 			| otherRobot.moveTo(bestOtherNode)
+	 * 
+	 * @throws	IllegalStateException
+	 * 			If this robot is not placed on any board.
+	 * 			| !isPlaced()
+	 * @throws	IllegalArgumentException
+	 * 			If the other robot is not effective or is not placed on a board.
+	 * 			| otherRobot == null || !otherRobot.isPlaced()
+	 * @throws	IllegalArgumentException
+	 * 			If the other robot equals this robot.
+	 * 			| otherRobot == this
+	 * @throws	IllegalArgumentException
+	 * 			If the other robot is placed on a different board.
+	 * 			| otherRobot.getBoard() != this.getBoard()
 	 */
-	private void resolveConflictingPositions(Robot otherRobot) throws InvalidPositionException {
-		assert this != otherRobot;
-		assert this.getPosition().equals(otherRobot.getPosition());
+	public void moveNextTo(Robot otherRobot) throws IllegalArgumentException {
+		if (isTerminated() || !isPlaced())
+			throw new IllegalStateException("Robot must be placed on a board.");
+		if (otherRobot == null || !otherRobot.isPlaced())
+			throw new IllegalArgumentException("Other robot must be effective and placed on a board.");
+		if (otherRobot == this)
+			throw new IllegalArgumentException("Other robot cannot equal this robot.");
+		if (otherRobot.getBoard() != getBoard())
+			throw new IllegalArgumentException("Other robot must be on the same board as this robot.");
 
-		// Get possible positions
-		List<Vector> positions = getAdjacentPositions(this.getPosition());
-		// List of conflicting robots
-		Robot[] robots = new Robot[] { this, otherRobot };
+		// Run A* for retrieving the reachable positions of both robots
+		ReachAStar thisAstar = new ReachAStar(this);
+		Map<Vector, ReachNode> thisReachable = thisAstar.getReachable();
 
-		// Initial values
-		Robot bestRobot = this;
-		Vector bestPosition = this.getPosition();
-		double minimumCost = Double.MAX_VALUE;
+		ReachAStar otherAstar = new ReachAStar(otherRobot);
+		Map<Vector, ReachNode> otherReachable = otherAstar.getReachable();
 
-		// Test every position on every robot
-		for (Robot robot : robots) {
-			for (Vector position : positions) {
-				// If this robot can reach this position,
-				// retrieve the cost to do so
-				if (robot.canReach(position)) {
-					double cost = robot.getEnergyRequiredToReach(position);
-					// If cost is lower than current minimum,
-					// use this robot and this position
-					if (cost < minimumCost) {
-						bestPosition = position;
-						bestRobot = robot;
-						minimumCost = cost;
+		// Initialize on current positions
+		ReachNode bestThisNode = thisReachable.get(this.getPosition());
+		ReachNode bestOtherNode = otherReachable.get(otherRobot.getPosition());
+		long bestDistance = this.getPosition().manhattanDistance(otherRobot.getPosition());
+		double bestCost = bestThisNode.getG() + bestOtherNode.getG();
+
+		// Check all reachable nodes for this robot
+		for (ReachNode thisNode : thisReachable.values()) {
+			Vector thisPosition = thisNode.getPosition();
+			// Check all distances between one and the current best distance
+			for (long distance = 1; distance <= bestDistance; ++distance) {
+				// Check all neighbours at the current distance
+				for (Vector otherPosition : thisPosition.getNeighbours(distance)) {
+					// Get reachable node at this position from other robot
+					ReachNode otherNode = otherReachable.get(otherPosition);
+					// If not reachable by other robot, skip
+					if (otherNode == null)
+						continue;
+					// Get the total cost to reach these positions
+					double cost = thisNode.getG() + otherNode.getG();
+					// If the distance is lower or the cost is the same
+					// for the same best distance, store as current best
+					if (distance < bestDistance || cost < bestCost) {
+						bestThisNode = thisNode;
+						bestOtherNode = otherNode;
+						bestDistance = distance;
+						bestCost = cost;
 					}
 				}
 			}
 		}
 
-		// Resolve conflict
-		bestRobot.moveTo(bestPosition);
+		// Move to positions
+		this.moveTo(bestThisNode);
+		otherRobot.moveTo(bestOtherNode);
 	}
 
-	/**
-	 * Get a list of valid positions adjacent to the given position.
-	 * 
-	 * @param position
-	 * 			The position.
-	 * 
-	 * @return	A list of valid positions at a Manhattan distance of
-	 * 			one around the given position.
-	 * 			| for each adjacent in result:
-	 * 			|	isValidPosition(adjacent)
-	 * 			|	&& adjacent.subtract(position).manhattanDistance() == 1
+	/*
+	 * Shooting
 	 */
-	private List<Vector> getAdjacentPositions(Vector position) {
-		List<Vector> adjacents = new ArrayList<Vector>();
-		// Loop over all orientations
-		for (Orientation orientation : Orientation.values()) {
-			// Get position when stepping in this orientation
-			Vector delta = orientation.getVector();
-			Vector neighbour = position.add(delta);
-			// Add to list if valid position
-			if (isValidPosition(neighbour))
-				adjacents.add(neighbour);
-		}
-		return adjacents;
-	}
 
 	/**
-	 * Get the first position in the given list which can be reached
-	 * by this robot.
+	 * Shoot in the direction this robot is facing.
 	 * 
-	 * @param positions
-	 * 			A list of positions.
+	 * <p>All pieces at the first occupied position
+	 * in this direction are terminated.</p>
 	 * 
-	 * @return	If one of the positions in the list can be reached,
-	 * 			the first reachable position is returned.
-	 * 			If none of the positions can be reached,
-	 * 			null is returned.
-	 * 			| if(for some position in positions: canReach(position)
-	 * 			|	let
-	 * 			|		firstReachableIndex = min({i | canReach(positions.get(i))})
-	 * 			|	result == position.get(firstReachableIndex)
-	 * 			| else
-	 * 			|	result == null
-	 * 
-	 * @throws	InvalidPositionException
-	 * 			If one of the given positions is invalid for this robot.
-	 * 			| for some position in positions:
-	 * 			|	!isValidPosition(position)
+	 * @pre		The robot must have enough energy to shoot.
+	 * 			| canShoot()
+	 * @effect	If this robot is not placed on any board,
+	 * 			nothing happens.
+	 * @effect	If this robot is placed on a board,
+	 * 			the energy of this robot is decreased with
+	 * 			the energy cost of one shot.
+	 * 			| if (isPlaced())
+	 * 			|   drain(getShootCost())
+	 * @effect	The target position is the first occupied position
+	 * 			on the board in the direction this robot is facing.
+	 * 			If this robot is placed on a board, all the pieces
+	 * 			on the board at the target position are terminated.
+	 * 			| if (isPlaced())
+	 * 			|    let
+	 * 			|      possibleTargets = {target:Vector 
+	 * 			|            | getOrientation() == Orientation.fromVector(target.substract(getPosition()))
+	 * 			|               && target.manhattanDistance(getPosition()) >= 1
+	 * 			|               && getBoard().hasPiecesAt(target)} 
+	 * 			|      firstTarget = {first:Vector | first in possibleHits 
+	 * 			|            && for each target in possibleTargets :
+	 * 			|                  first.manhattanDistance(getPosition()) <= target.manhattanDistance(getPosition())} 
+	 * 			|    for each piece in getBoard().getPiecesAt(firstHit)
+	 * 			|      piece.terminate()
 	 */
-	private Vector getFirstReachablePosition(List<Vector> positions) throws InvalidPositionException {
-		Iterator<Vector> it = positions.iterator();
-		Vector position;
-		while (it.hasNext()) {
-			position = it.next();
-			if (canReach(position))
-				return position;
-		}
-		return null;
-	}
+	public void shoot() {
+		assert canShoot();
 
-	/**
-	 * Construct paths to move towards a given target position.
-	 * 
-	 * @param target
-	 * 			The target position.
-	 * 
-	 * @return	A list of paths (list of positions).
-	 */
-	private List<List<Vector>> buildPathsTo(Vector target) {
-		List<List<Vector>> paths = new ArrayList<List<Vector>>();
+		// Do nothing if not placed
+		if (!isPlaced())
+			return;
 
-		// First path
-		List<Vector> path = new ArrayList<Vector>();
-		Vector position = this.getPosition();
-		position = buildHorizontalPath(path, position, target);
-		position = buildVerticalPath(path, position, target);
-		paths.add(path);
+		Orientation direction = getOrientation();
+		Vector position = getPosition();
+		Board board = getBoard();
 
-		// Second path, if not on one line
-		Vector deltaTarget = target.subtract(this.getPosition());
-		if (!deltaTarget.isHorizontal() && !deltaTarget.isVertical()) {
-			path = new ArrayList<Vector>();
-			position = this.getPosition();
-			position = buildVerticalPath(path, position, target);
-			position = buildHorizontalPath(path, position, target);
-			paths.add(path);
-		}
-		return paths;
-	}
+		// Get the first position in the direction this robot is facing
+		// where another piece is located
+		Vector target = position;
+		do {
+			target = board.getNextPosition(target, direction);
+		} while (target != null && !board.hasPiecesAt(target));
 
-	/**
-	 * Extend a path horizontally to move from a starting position
-	 * towards the X-coordinate of the target position.
-	 *  
-	 * @param path
-	 * 			The path (list of positions) to extend.
-	 * @param start
-	 * 			The starting position.
-	 * @param target
-	 * 			The target position.
-	 * 
-	 * @post	The given path is extended horizontally
-	 * 			towards a position with the same X-coordinate
-	 * 			as the target. This last position is not yet
-	 * 			added to the path, but is returned instead.
-	 * @return	The last position with the same X-coordinate
-	 * 			as the target.
-	 */
-	private static Vector buildHorizontalPath(List<Vector> path, Vector start, Vector target) {
-		Vector deltaTarget = target.subtract(start);
-		Vector position = start;
+		// Terminate all positions at the target position
+		Set<Piece> pieces = new HashSet<Piece>(board.getPiecesAt(target));
 
-		// Direction to move along
-		int direction = deltaTarget.isRight() ? 1 : -1;
-		// Distance to travel
-		long distance = Math.abs(target.getX() - start.getX());
-
-		for (long x = 0; x < distance; x++) {
-			path.add(position);
-			position = position.add(direction, 0);
-		}
-		return position;
-	}
-
-	/**
-	 * Extend a path vertically to move from a starting position
-	 * towards the Y-coordinate of the target position.
-	 *  
-	 * @param path
-	 * 			The path (list of positions) to extend.
-	 * @param start
-	 * 			The starting position.
-	 * @param target
-	 * 			The target position.
-	 * 
-	 * @post	The given path is extended vertically
-	 * 			towards a position with the same Y-coordinate
-	 * 			as the target. This last position is not yet
-	 * 			added to the path, but is returned instead.
-	 * @return	The last position with the same Y-coordinate
-	 * 			as the target.
-	 */
-	private static Vector buildVerticalPath(List<Vector> path, Vector start, Vector target) {
-		Vector deltaTarget = target.subtract(start);
-		Vector position = start;
-
-		// Direction to move along
-		int direction = deltaTarget.isDown() ? 1 : -1;
-		// Distance to travel
-		long distance = Math.abs(target.getY() - start.getY());
-
-		for (long y = 0; y < distance; y++) {
-			path.add(position);
-			position = position.add(0, direction);
+		for (Piece victim : pieces) {
+			victim.terminate();
 		}
 
-		return position;
+		// Drain the shoot cost
+		drain(getShootCost());
 	}
 
 	/**
-	 * Check whether this robot implementation takes turns into account
-	 * when finding the energy required to reach a position and
-	 * when moving next to another robot.
+	 * Check whether this robot has enough energy to shoot once.
 	 * 
-	 * @note Watch out guys, we're dealing with a bad ass over here!
-	 * @see #getEnergyRequiredToReach(long, long)
-	 * @see #moveNextTo(Robot)
+	 * @return	True if the energy cost of one shot can be drained from this robot.
+	 * 			| result == canDrain(getShootCost())
+	 * @see #getShootCost()
 	 */
-	public static boolean isGetEnergyRequiredToReachAndMoveNextTo16Plus() {
-		return true;
+	public boolean canShoot() {
+		return canDrain(getShootCost());
 	}
 
+	/**
+	 * Get the energy cost for one shot.
+	 */
+	@Basic
+	public double getShootCost() {
+		return shootCost;
+	}
+
+	private final static double shootCost = 1000;
+
+	/**
+	 * @effect	All the possessions of this robot are terminated.
+	 * 			| for each possession in getPossessions() :
+	 * 			|   possession.terminate()
+	 * @post	This robot no longer has any possessions.
+	 * 			| new.getNbPossessions() == 0
+	 */
+	@Override
+	public void terminate() {
+		// Terminate and remove all possessions
+		for (Item possession : possessions) {
+			possession.terminate();
+		}
+		possessions.clear();
+
+		super.terminate();
+	}
+
+	@Override
+	public String toString() {
+		String result = super.toString();
+		result += String.format(" with %.2f Ws energy", getEnergy());
+		result += String.format(" and %d possessions", getNbPossessions());
+		return result;
+	}
 }
