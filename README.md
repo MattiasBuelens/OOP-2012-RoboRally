@@ -6,6 +6,8 @@ at KU Leuven, Belgium.
 The original project was built using Eclipse. It has been converted to an IntelliJ project and now uses Maven for building.
 However, the source files are unchanged, and the resulting program runs exactly the same as the original.
 
+![Screenshot](https://mattiasbuelens.github.io/OOP-2012-RoboRally/assets/screenshot.png)
+
 ## Authors
 * [Mattias Buelens](https://github.com/MattiasBuelens)
 * [Thomas Goossens](https://github.com/tgoossens)
